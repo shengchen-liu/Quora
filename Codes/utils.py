@@ -19,6 +19,27 @@ import sys
 
 from common import *
 
+def time_to_str(t, mode='min'):
+    if mode=='min':
+        t  = int(t)/60
+        hr = t//60
+        min = t%60
+        return '%2d hr %02d min'%(hr,min)
+
+    elif mode=='sec':
+        t   = int(t)
+        min = t//60
+        sec = t%60
+        return '%2d min %02d sec'%(min,sec)
+
+
+    else:
+        raise NotImplementedError
+# save best model
+def save_checkpoint(state,fold, kfold, config):
+    filename = '{0}{1}/fold_{2}/checkpoint_{3}_fold{4}.pth.tar'.format(
+        config.weights, config.model_name, str(fold), state['epoch'], kfold)
+    torch.save(state, filename)
 
 # Early stopping
 class EarlyStopping:
@@ -66,17 +87,6 @@ class EarlyStopping:
         # torch.save(model.state_dict(), 'checkpoint.pt')
         self.val_loss_min = val_loss
 
-
-# save best model
-def save_checkpoint(state, is_best_loss,is_best_f1,fold, kfold):
-    filename = '{0}{1}/fold_{2}/checkpoint_{3}_fold{4}.pth.tar'.format(
-        config.weights, config.model_name, str(fold), state['epoch'], kfold)
-    # filename = config.weights + config.model_name + os.sep +str(fold) + os.sep + "checkpoint.pth.tar"
-    torch.save(state, filename)
-    # if is_best_loss:
-    #     shutil.copyfile(filename,"%s/%s_fold_%s_model_best_loss.pth.tar"%(config.best_models,config.model_name,str(fold)))
-    # if is_best_f1:
-    #     shutil.copyfile(filename,"%s/%s_fold_%s_model_best_f1.pth.tar"%(config.best_models,config.model_name,str(fold)))
 
 # evaluate meters
 class AverageMeter(object):

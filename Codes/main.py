@@ -24,7 +24,7 @@ parser.add_argument("--BATCH_SIZE", help="BATCH SIZE TIMES NUMBER OF GPUS",
 parser.add_argument("--GPUS", help="GPU", default='0',
                     type=str)
 parser.add_argument("--LR", help="INITIAL LEARNING RATE",
-                    default=1e-4,type=float)
+                    default=1e-3,type=float)
 parser.add_argument("--CHECKPOINT", help="CHECK POINT FOR TEST",
                     default=0, type=int)
 parser.add_argument("--FOLD", help="KFOLD",
@@ -67,148 +67,76 @@ log.open('{0}{1}_log_train.txt'.format(config.logs, config.model_name),mode="a")
 for arg in vars(args):
     log.write('{0}:{1}\n'.format(arg, getattr(args, arg)))
 log.write("\n-------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
-log.write('                          |------ Train ------|------ Valid ------|----Best Results---|------------|\n')
-log.write('mode    iter   epoch    lr|  loss    f1_macro |  loss    f1_macro |  loss    f1_macro | time       |\n')
-log.write('----------------------------------------------------------------------------------------------------\n')
+log.write('                          |------ Train ------|------ Valid ------|------------|\n')
+log.write('mode    iter   epoch    lr|       loss        |       loss        | time       |\n')
+log.write('------------------------------------------------------------------------------- \n')
 
-def train(train_loader,model,criterion,optimizer,epoch,valid_loss,best_results,start, threshold=0.3):
-    losses = AverageMeter()
-    f1 = AverageMeter()
+def train(train_loader,model,loss_fn, optimizer,epoch,valid_loss,start):
     model.train()
-    for i,(images,target) in enumerate(train_loader):
-        images = images.cuda(non_blocking=True)
-        target = torch.from_numpy(np.array(target)).float().cuda(non_blocking=True)
-        # compute output
-        output = data_parallel(model,images)
-        # output = model(images)
-        loss = criterion(output,target)
-        losses.update(loss.item(),images.size(0))
-        
-        f1_batch = f1_score(target.cpu(),output.sigmoid().cpu() > threshold,average='macro')
-        f1.update(f1_batch,images.size(0))
+    avg_loss = 0.
+    for i, (x_batch, y_batch) in enumerate(train_loader):
+        y_pred = model(x_batch)
+        loss = loss_fn(y_pred, y_batch)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        print('\r',end='',flush=True)
-        message = '%s %5.1f %6.1f        |  %0.3f   %0.3f    |   %0.3f    %0.4f   |  %s      %s       | %s' % (\
-                "train", i/len(train_loader) + epoch, epoch,
-                losses.avg, f1.avg, 
-                valid_loss[0], valid_loss[1], 
-                str(best_results[0])[:8],str(best_results[1])[:8],
-                time_to_str((timer() - start),'min'))
-        print(message , end='',flush=True)
+        avg_loss += loss.item() / len(train_loader)
+        print('\r', end='', flush=True)
+        message = '%s %5.1f %6.1f        |  %0.3f  |   %0.3f   | %s' % ( \
+            "train", i / len(train_loader) + epoch, epoch,
+            avg_loss,
+            valid_loss,
+            utils.time_to_str((timer() - start), 'min'))
+        print(message, end='', flush=True)
     log.write("\n")
-    #log.write(message)
-    #log.write("\n")
-    return [losses.avg,f1.avg]
+    return avg_loss
+
 
 # 2. evaluate fuunction
-def evaluate(val_loader,model,criterion,epoch,train_loss,best_results,start, threshold=0.3):
-    # only meter loss and f1 score
-    losses = AverageMeter()
-    f1 = AverageMeter()
+def evaluate(val_loader,model,loss_fn,epoch,train_loss,start_time):
     # switch mode for evaluation
     model.cuda()
     model.eval()
+
     with torch.no_grad():
-        for i, (images,target) in enumerate(val_loader):
-            images_var = images.cuda(non_blocking=True)
-            target = torch.from_numpy(np.array(target)).float().cuda(non_blocking=True)
-
-            # optain output of a batch
-            output = data_parallel(model, images_var)
-
+        for i, (x_batch, y_batch) in enumerate(val_loader):
+            y_pred = model(x_batch)
             # Concatenate all every batch
             if i == 0:
-                total_output = output
-                total_target = target
+                total_output = y_pred
+                total_target = y_batch
             else:
-                total_output = torch.cat([total_output, output], 0)
-                total_target = torch.cat([total_target, target], 0)
+                total_output = torch.cat([total_output, y_pred], 0)
+                total_target = torch.cat([total_target, y_batch], 0)
 
         # compute loss for the entire evaluation dataset
-        loss = criterion(total_output, total_target)
-        losses.update(loss.item(), images_var.size(0))
-        f1_batch = f1_score(total_target.cpu(), total_output.sigmoid().cpu().data.numpy() > threshold, average='macro')
-        f1.update(f1_batch, images_var.size(0))
-        print('\r', end='', flush=True)
-        message = '%s   %5.1f %6.1f        |  %0.3f   %0.3f    |   %0.3f    %0.4f   |  %s      %s       | %s' % ( \
-            "val", epoch, epoch,
-            train_loss[0], train_loss[1],
-            losses.avg, f1.avg,
-            str(best_results[0])[:8], str(best_results[1])[:8],
-            time_to_str((timer() - start), 'min'))
+        val_loss = loss_fn(total_output, total_target).item() / len(val_loader)
 
+        print('\r', end='', flush=True)
+        message = '%s %5.1f %6.1f        |  %0.3f  |   %0.3f   | %s' % ( \
+            "val", epoch, epoch,
+            train_loss,
+            val_loss,
+            utils.time_to_str((timer() - start_time), 'min'))
         print(message, end='', flush=True)
 
         log.write("\n")
 
-    return [losses.avg,f1.avg]
+    return val_loss
 
 # 3. test model on public dataset and save the probability matrix
-def test(test_loader,model,thresholds):
-    sample_submission_df = pd.read_csv("./input/sample_submission.csv")
-    #3.1 confirm the model converted to cuda
-    filenames, labels, submissions= [],[],[]
+def test(test_loader,model):
     model.cuda()
     model.eval()
-    submit_results = []
+    predictions = []
+    sigmoid = nn.Sigmoid()
+    with torch.no_grad():
+        for i, (x_batch,) in enumerate(test_loader):
+            y_pred = model(x_batch)
+            y_preds = sigmoid(y_pred.cpu().data.numpy())[:, 0]
 
-    def apply_transform(iter, loader):
-        predictions = []
-        for i, (input, filepaths) in enumerate(tqdm(loader)):
-            # 3.2 change everything to cuda and get only basename
-            filepaths = [os.path.basename(x) for x in filepaths]
-            input = T.Compose([T.ToPILImage()])(input.squeeze())
-
-            if iter < 4:#rotate
-                input = f.rotate(input, 90*(iter+1))
-            elif iter ==4: #hflip
-                input = f.hflip(input)
-            elif iter ==5: #vflip
-                input = f.vflip(input)
-            elif iter ==6: #resize 1.1
-                input = f.affine(input, angle=0, translate=(0,0), shear=0,scale=1.1)
-            elif iter ==7: #resize 1/1.1
-                input = f.affine(input, angle=0, translate=(0,0), shear=0, scale=1/1.1)
-            elif iter == 8:  # translate
-                input = f.affine(input, angle=0, translate=(20,20), shear=0, scale=1)
-            elif iter == 9:  # translate
-                input = f.affine(input, angle=0, translate=(-20,-20), shear=0, scale=1)
-
-            with torch.no_grad():
-                input = f.to_tensor(input)
-                input = input.unsqueeze(0)
-                image_var = input.cuda(non_blocking=True)
-                y_preds = model(image_var)
-                # label = y_pred.sigmoid().cpu().data.numpy()
-                y_preds = y_preds.cpu().data.numpy()
-
-                for y_pred, filepath in zip(y_preds, filepaths):
-                    predictions.append(y_pred)
-                    if iter==0:
-                        filenames.append(filepath)
-
-        # predictions = np.array(predictions)
-        return predictions
-
-    results = []
-
-    for i in range(6):
-        print('TTA {}'.format(i))
-        r = apply_transform(i,test_loader)
-        results.append(r)
-
-    results = np.array(results)
-    results = results.mean(axis=0)
-
-
-    for result in results:
-        row = result > thresholds
-        subrow = ' '.join(list([str(i) for i in np.nonzero(row)[0]]))
-        submissions.append(subrow)
-    sample_submission_df['Predicted'] = submissions
-    sample_submission_df.to_csv('./results/submit/%s_submission.csv' % config.model_name, index=None)
+            predictions.append(y_preds)
+    return predictions
 
 # 4. main function
 def main():
@@ -249,12 +177,22 @@ def main():
     test_preds = np.zeros((len(test_X)))
 
     x_test_cuda = torch.tensor(test_X, dtype=torch.long).cuda()
-    test = torch.utils.data.TensorDataset(x_test_cuda)
-    test_loader = torch.utils.data.DataLoader(test, batch_size=config.batch_size, shuffle=False)
+    test_dataset = torch.utils.data.TensorDataset(x_test_cuda)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
 
     splits = list(StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED).split(train_X, train_y))
 
-    for i, (train_idx, valid_idx) in enumerate(splits):
+    sigmoid = nn.Sigmoid()
+    loss_fn = torch.nn.BCEWithLogitsLoss(reduction="sum")
+
+    # k-fold
+    for fold, (train_idx, valid_idx) in enumerate(splits):
+        # tflogger
+        tflogger = utils.TFLogger(os.path.join('results', 'TFlogs',
+                                         config.model_name + "_fold{0}_{1}".format(config.fold, fold)))
+        # initialize the early_stopping object
+        early_stopping = utils.EarlyStopping(patience=7, verbose=True)
+
         x_train_fold = torch.tensor(train_X[train_idx], dtype=torch.long).cuda()
         y_train_fold = torch.tensor(train_y[train_idx, np.newaxis], dtype=torch.float32).cuda()
         x_val_fold = torch.tensor(train_X[valid_idx], dtype=torch.long).cuda()
@@ -263,50 +201,81 @@ def main():
         model = Baseline_Bidir_LSTM_GRU(config, word_index)
         model.cuda()
 
-        loss_fn = torch.nn.BCEWithLogitsLoss(reduction="sum")
-        optimizer = torch.optim.Adam(model.parameters())
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
-        train = torch.utils.data.TensorDataset(x_train_fold, y_train_fold)
-        valid = torch.utils.data.TensorDataset(x_val_fold, y_val_fold)
+        train_dataset = torch.utils.data.TensorDataset(x_train_fold, y_train_fold)
+        valid_dataset = torch.utils.data.TensorDataset(x_val_fold, y_val_fold)
 
-        train_loader = torch.utils.data.DataLoader(train, batch_size=config.batch_size, shuffle=True)
-        valid_loader = torch.utils.data.DataLoader(valid, batch_size=config.batch_size, shuffle=False)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
+        valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=config.batch_size, shuffle=False)
 
         print(f'Fold {i + 1}')
 
+        valid_loss = np.inf
+        start_time = time.time()
         for epoch in range(config.epochs):
-            start_time = time.time()
+            # train
+            lr = utils.get_learning_rate(optimizer)
+            train_loss = train(train_loader=train_loader,model=model,loss_fn=loss_fn, optimize=optimizer,
+                               epoch=epoch,valid_loss=valid_loss,start=start_time)
 
-            model.train()
-            avg_loss = 0.
-            for x_batch, y_batch in tqdm(train_loader, disable=True):
-                y_pred = model(x_batch)
-                loss = loss_fn(y_pred, y_batch)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                avg_loss += loss.item() / len(train_loader)
-
-            model.eval()
-            valid_preds_fold = np.zeros((x_val_fold.size(0)))
+            # validate
+            valid_loss = evaluate(val_loader=valid_loader, model=model, loss_fn=loss_fn, epoch=epoch,
+                                train_loss=train_loss, start_time=start_time)
             test_preds_fold = np.zeros(len(test_X))
-            avg_val_loss = 0.
-            for i, (x_batch, y_batch) in enumerate(valid_loader):
-                y_pred = model(x_batch).detach()
-                avg_val_loss += loss_fn(y_pred, y_batch).item() / len(valid_loader)
-                valid_preds_fold[i * config.batch_size:(i + 1) * config.batch_size] = sigmoid(y_pred.cpu().numpy())[:, 0]
 
-            elapsed_time = time.time() - start_time
-            print('Epoch {}/{} \t loss={:.4f} \t val_loss={:.4f} \t time={:.2f}s'.format(
-                epoch + 1, config.epochs, avg_loss, avg_val_loss, elapsed_time))
+            # save model
+            utils.save_checkpoint({
+                "epoch": epoch,
+                "model_name": config.model_name,
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "fold": config.fold,
+                "kfold": config.fold,
+            },config.fold, fold, config)
+            # print logs
+            print('\r', end='', flush=True)
 
-        for i, (x_batch,) in enumerate(test_loader):
-            y_pred = model(x_batch).detach()
+            log.write("\n")
+            time.sleep(0.01)
 
-            test_preds_fold[i * config.batch_size:(i + 1) * config.batch_size] = sigmoid(y_pred.cpu().numpy())[:, 0]
+            # ================================================================== #
+            #                        Tensorboard Logging                         #
+            # ================================================================== #
 
-        train_preds[valid_idx] = valid_preds_fold
+            # 1. Log scalar values (scalar summary)
+            info = {'Train_loss': train_loss,
+                    'Valid_loss': valid_loss,
+                    'Learnging_rate': lr}
+
+            for tag, value in info.items():
+                tflogger.scalar_summary(tag, value, epoch)
+
+            # 2. Log values and gradients of the parameters (histogram summary)
+            for tag, value in model.named_parameters():
+                tag = tag.replace('.', '/')
+                tflogger.histo_summary(tag, value.data.cpu().numpy(), epoch)
+                tflogger.histo_summary(tag + '/grad', value.grad.data.cpu().numpy(), epoch)
+            # -------------------------------------
+            # end tflogger
+
+            # ================================================================== #
+            #                        Early stopping                         #
+            # ================================================================== #
+            # early_stopping needs the validation loss to check if it has decresed,
+            # and if it has, it will make a checkpoint of the current model
+            early_stopping(valid_loss, model)
+
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+
+        # end looping all epochs
+
+        # test
+        test_preds_fold = test(test_loader=test_loader, model=model)
         test_preds += test_preds_fold / len(splits)
+        # end k-fold
 
 
 

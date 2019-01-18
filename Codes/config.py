@@ -9,7 +9,7 @@ class DefaultConfigs(object):
     best_models = "../results/checkpoints/best_models/"
     submit = "../results/submit/"
     model_name = "Baseline"
-    lr = 1e-4
+    lr = 1e-3
     batch_size = 1536
     epochs = 8
     resume = True
@@ -18,7 +18,7 @@ class DefaultConfigs(object):
     mode = 'train'
     threshold=0.3
     checkpoint = 0
-    fold=0
+    fold=5
     model='baseline'
     embed_size = 300  # how big is each word vector
     max_features = 120000  # how many unique words to use (i.e num rows in embedding vector)
