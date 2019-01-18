@@ -75,7 +75,7 @@ import time
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-
+from sklearn.metrics import f1_score, roc_auc_score
 
 
 # constant #
