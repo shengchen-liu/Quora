@@ -47,9 +47,10 @@ class Baseline_Bidir_LSTM_GRU(nn.Module):
 
         #       3. Bidirectional LSTM
         # https://towardsdatascience.com/understanding-bidirectional-rnn-in-pytorch-5bd25a5dd66
-        h_lstm, _ = self.lstm(h_embedding)
+        h_lstm, (hn_lstm, cn_lstm) = self.lstm(h_embedding)
+#         print("hn_lstm:", hn_lstm.shape)
         #     4. Bidirectional GRU
-        h_gru, _ = self.gru(h_lstm)
+        h_gru, l_gru = self.gru(h_lstm)
 
         #       5. A concatenation of the last state, maximum pool, average pool and two features:
         #        "Unique words rate" and "Rate of all-caps words"
@@ -57,7 +58,12 @@ class Baseline_Bidir_LSTM_GRU(nn.Module):
         max_pool, _ = torch.max(h_gru, 1)
 
         # conc = torch.cat((h_lstm_atten, h_gru_atten, avg_pool, max_pool), 1)
-        conc = torch.cat((h_lstm, h_gru, avg_pool, max_pool), 1)
+        hn_lstm = hn_lstm.view(hn_lstm.shape[1],-1)
+        l_gru = l_gru.view(l_gru.shape[1],-1)
+#         print("l_gru:", l_gru.shape) # torch.Size([2, 1536, 60]) ->[1536, 2*60]
+#         print("avg_pool:", avg_pool.shape)
+#         print("max_pool:", max_pool.shape)
+        conc = torch.cat((hn_lstm, l_gru, avg_pool, max_pool), 1)
         conc = self.relu(self.linear(conc))
         conc = self.dropout(conc)
         out = self.out(conc)
