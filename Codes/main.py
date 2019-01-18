@@ -187,6 +187,8 @@ def main():
 
     # k-fold
     for fold, (train_idx, valid_idx) in enumerate(splits):
+        print(f'Fold {fold + 1}')
+
         # tflogger
         tflogger = utils.TFLogger(os.path.join('results', 'TFlogs',
                                          config.model_name + "_fold{0}_{1}".format(config.fold, fold)))
@@ -208,8 +210,6 @@ def main():
 
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
         valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=config.batch_size, shuffle=False)
-
-        print(f'Fold {i + 1}')
 
         valid_loss = np.inf
         start_time = time.time()
