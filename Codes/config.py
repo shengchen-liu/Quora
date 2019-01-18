@@ -15,9 +15,6 @@ class DefaultConfigs(object):
     resume = True
     initial_checkpoint = '0'
     gpus = "0"
-    mode = 'train'
-    threshold=0.3
-    checkpoint = 0
     fold=5
     model='baseline'
     embed_size = 300  # how big is each word vector
