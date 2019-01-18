@@ -41,6 +41,17 @@ def save_checkpoint(state,fold, kfold, config):
         config.weights, config.model_name, str(fold), state['epoch'], kfold)
     torch.save(state, filename)
 
+# get learning rate
+def get_learning_rate(optimizer):
+    lr=[]
+    for param_group in optimizer.param_groups:
+       lr +=[ param_group['lr'] ]
+
+    #assert(len(lr)==1) #we support only one param_group
+    lr = lr[0]
+return lr
+
+
 # Early stopping
 class EarlyStopping:
     """Early stops the training if validation loss dosen't improve after a given patience."""
