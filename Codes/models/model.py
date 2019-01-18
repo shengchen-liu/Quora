@@ -1,0 +1,65 @@
+from common import *
+import utils
+# https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/discussion/52644
+# input shape: (seq_len, batch, input_size)
+
+class Baseline_Bidir_LSTM_GRU(nn.Module):
+    def __init__(self, config, word_index):
+        super(Baseline_Bidir_LSTM_GRU, self).__init__()
+
+        hidden_size = 60  # The number of features in the hidden state h
+
+        self.embedding = nn.Embedding(config.max_features, config.embed_size)
+
+        print("Start loading embedding....................")
+        embedding_matrix_1 = utils.load_glove(word_index, config.embedding_dir, config.max_features)
+        # embedding_matrix = np.mean([embedding_matrix_1, embedding_matrix_2], axis=0)
+        embedding_matrix = embedding_matrix_1
+
+        # embedding_matrix = np.concatenate((embedding_matrix_1, embedding_matrix_2), axis=1)
+        print("Embedding matrix shape:", np.shape(embedding_matrix))
+
+        # del embedding_matrix_1, embedding_matrix_2
+        del embedding_matrix_1
+
+        self.embedding.weight = nn.Parameter(torch.tensor(embedding_matrix, dtype=torch.float32))
+        self.embedding.weight.requires_grad = False
+
+        self.embedding_dropout = nn.Dropout2d(0.5)
+        self.lstm = nn.LSTM(input_size=config.embed_size, hidden_size=hidden_size, bidirectional=True, batch_first=True)
+        self.gru = nn.GRU(input_size=hidden_size * 2, hidden_size=hidden_size, bidirectional=True, batch_first=True)
+
+        # self.lstm_attention = Attention(hidden_size * 2, config.maxlen)
+        # self.gru_attention = Attention(hidden_size * 2, config.maxlen)
+
+        self.linear = nn.Linear(480, 16)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.1)
+        self.out = nn.Linear(16, 1)
+
+    def forward(self, x):
+        # 1. embedding
+        h_embedding = self.embedding(x)
+
+        # 2. spatial dropout to prevent over-fitting
+        #         https://stackoverflow.com/questions/50393666/how-to-understand-spatialdropout1d-and-when-to-use-it
+        h_embedding = torch.squeeze(self.embedding_dropout(torch.unsqueeze(h_embedding, 0)))
+
+        #       3. Bidirectional LSTM
+        # https://towardsdatascience.com/understanding-bidirectional-rnn-in-pytorch-5bd25a5dd66
+        h_lstm, _ = self.lstm(h_embedding)
+        #     4. Bidirectional GRU
+        h_gru, _ = self.gru(h_lstm)
+
+        #       5. A concatenation of the last state, maximum pool, average pool and two features:
+        #        "Unique words rate" and "Rate of all-caps words"
+        avg_pool = torch.mean(h_gru, 1)
+        max_pool, _ = torch.max(h_gru, 1)
+
+        # conc = torch.cat((h_lstm_atten, h_gru_atten, avg_pool, max_pool), 1)
+        conc = torch.cat((h_lstm, h_gru, avg_pool, max_pool), 1)
+        conc = self.relu(self.linear(conc))
+        conc = self.dropout(conc)
+        out = self.out(conc)
+
+        return out
