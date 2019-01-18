@@ -49,7 +49,7 @@ def get_learning_rate(optimizer):
 
     #assert(len(lr)==1) #we support only one param_group
     lr = lr[0]
-return lr
+    return lr
 
 
 # Early stopping
