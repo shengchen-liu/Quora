@@ -3,14 +3,13 @@ import utils
 # https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/discussion/52644
 # input shape: (seq_len, batch, input_size)
 
-class model(nn.Module):
+class NeuralNet(nn.Module):
     def __init__(self, config, embedding_matrix):
-        super(Baseline_Bidir_LSTM_GRU, self).__init__()
+        super(NeuralNet, self).__init__()
 
         hidden_size = 60  # The number of features in the hidden state h
 
         self.embedding = nn.Embedding(config.max_features, config.embed_size)
-
         self.embedding.weight = nn.Parameter(torch.tensor(embedding_matrix, dtype=torch.float32))
         self.embedding.weight.requires_grad = False
 
@@ -58,3 +57,77 @@ class model(nn.Module):
         out = self.out(conc)
 
         return out
+
+def run_check_net():
+
+    batch_size = 32
+    C,H,W = 3, 32, 32
+    num_class = 5
+
+    input = np.random.uniform(0,1, (batch_size,C,H,W)).astype(np.float32)
+    truth = np.random.choice (num_class,   batch_size).astype(np.float32)
+
+    #------------
+    input = torch.from_numpy(input).float().cuda()
+    truth = torch.from_numpy(truth).long().cuda()
+
+
+    #---
+    criterion = softmax_cross_entropy_criterion
+    net = Net(num_class).cuda()
+    net.set_mode('train')
+    # print(net)
+    ## exit(0)
+
+    net.load_pretrain('../../../model/resnet34-333f7ec4.pth')
+
+    logit = net(input)
+    loss  = criterion(logit, truth)
+    precision, top = metric(logit, truth)
+
+    print('loss    : %0.8f  '%(loss.item()))
+    print('correct :(%0.8f ) %0.8f  %0.8f '%(precision.item(), top[0].item(),top[-1].item()))
+    print('')
+
+
+
+    # dummy sgd to see if it can converge ...
+    optimizer = optim.SGD(filter(lambda p: p.requires_grad, net.parameters()),
+                      lr=0.1, momentum=0.9, weight_decay=0.0001)
+
+    #optimizer = optim.Adam(net.parameters(), lr=0.001)
+
+
+    i=0
+    optimizer.zero_grad()
+    print('        loss  | prec      top      ')
+    print('[iter ]       |           1  ... k ')
+    print('-------------------------------------')
+    while i<=500:
+
+        logit   = net(input)
+        loss    = criterion(logit, truth)
+        precision, top = metric(logit, truth)
+
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
+        optimizer.step()
+        optimizer.zero_grad()
+
+        if i%20==0:
+            print('[%05d] %0.3f | ( %0.3f ) %0.3f  %0.3f'%(
+                i, loss.item(),precision.item(), top[0].item(),top[-1].item(),
+            ))
+        i = i+1
+
+
+
+
+
+########################################################################################
+if __name__ == '__main__':
+    print( '%s: calling main function ... ' % os.path.basename(__file__))
+
+    run_check_net()
+
+    print( 'sucessful!')

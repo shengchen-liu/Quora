@@ -35,7 +35,7 @@ def time_to_str(t, mode='min'):
 
     else:
         raise NotImplementedError
-# save best model
+# save best NeuralNet
 def save_checkpoint(state,fold, kfold, config):
     filename = '{0}{1}/fold_{2}/checkpoint_{3}_fold{4}.pth.tar'.format(
         config.weights, config.model_name, str(fold), state['epoch'], kfold)
@@ -92,10 +92,10 @@ class EarlyStopping:
 
 
     def update_loss_min(self, val_loss, model):
-        '''Saves model when validation loss decrease.'''
+        '''Saves NeuralNet when validation loss decrease.'''
         if self.verbose:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}) ...')
-        # torch.save(model.state_dict(), 'checkpoint.pt')
+        # torch.save(NeuralNet.state_dict(), 'checkpoint.pt')
         self.val_loss_min = val_loss
 
 

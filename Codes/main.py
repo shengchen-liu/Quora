@@ -1,7 +1,7 @@
 from common import *
 from config import *
 import utils
-from models import baseline_pytorch
+from models import baseline_pytorch, baseline_bidir_LSTM_GRU
 # import torchvision
 # import torchvision.transforms.functional as f
 # from torchvision import transforms as T
@@ -14,9 +14,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--MODEL_NAME", help="NAME OF OUTPUT FOLDER",
                     default="Baseline", type=str)
 parser.add_argument("--INITIAL_CHECKPOINT", help="CHECK POINT",
-                    type=str)
+                    default=0,type=str)
 parser.add_argument("--RESUME", help="RESUME RUN",
-                    type=bool)
+                    default=False,type=bool)
 parser.add_argument("--BATCH_SIZE", help="BATCH SIZE TIMES NUMBER OF GPUS",
                     default=10, type=int)
 parser.add_argument("--GPUS", help="GPU", default='0',
@@ -140,7 +140,7 @@ def evaluate(val_loader,model,loss_fn,epoch,train_loss,start_time):
 
     return losses.avg, total_output
 
-# 3. test model on public dataset and save the probability matrix
+# 3. test NeuralNet on public dataset and save the probability matrix
 def test(test_loader,model):
     model.cuda()
     model.eval()
@@ -172,6 +172,8 @@ def main():
 
     start_time = time.time()
     train_X, test_X, train_y, word_index = utils.load_and_prec(config)
+
+    print("Start embedding matrix............")
     embedding_matrix_1 = utils.load_glove(word_index, config.embedding_dir, config.max_features)
     embedding_matrix_2 = utils.load_para(word_index, config.embedding_dir, config.max_features)
 
@@ -219,7 +221,7 @@ def main():
         y_val_fold = torch.tensor(train_y[valid_idx, np.newaxis], dtype=torch.float32).cuda()
 
         if config.model == "baseline_bidir_LSTM_GRU":
-            model = models.baseline_bidir_LSTM_GRU.model(config, embedding_matrix)
+            model = baseline_bidir_LSTM_GRU.NeuralNet(config, embedding_matrix)
         elif config.model == "baseline_pytorch":
             model = baseline_pytorch.NeuralNet(config, embedding_matrix)
             
@@ -246,7 +248,7 @@ def main():
                                                 train_loss=train_loss, start_time=start_time)
             test_preds_fold = np.zeros(len(test_X))
 
-            # save model
+            # save NeuralNet
             utils.save_checkpoint({
                 "epoch": epoch,
                 "model_name": config.model_name,
@@ -286,7 +288,7 @@ def main():
             #                        Early stopping                         #
             # ================================================================== #
             # early_stopping needs the validation loss to check if it has decresed,
-            # and if it has, it will make a checkpoint of the current model
+            # and if it has, it will make a checkpoint of the current NeuralNet
             early_stopping(valid_loss, model)
 
             if early_stopping.early_stop:

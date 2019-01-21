@@ -6,7 +6,7 @@ results/
 temp/
 test/
 input/
-model/
+NeuralNet/
 scripts/
 
 # Byte-compiled / optimized / DLL files
