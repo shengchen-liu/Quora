@@ -3,24 +3,13 @@ import utils
 # https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/discussion/52644
 # input shape: (seq_len, batch, input_size)
 
-class Baseline_Bidir_LSTM_GRU(nn.Module):
-    def __init__(self, config, word_index):
+class model(nn.Module):
+    def __init__(self, config, embedding_matrix):
         super(Baseline_Bidir_LSTM_GRU, self).__init__()
 
         hidden_size = 60  # The number of features in the hidden state h
 
         self.embedding = nn.Embedding(config.max_features, config.embed_size)
-
-        print("Start loading embedding....................")
-        embedding_matrix_1 = utils.load_glove(word_index, config.embedding_dir, config.max_features)
-        # embedding_matrix = np.mean([embedding_matrix_1, embedding_matrix_2], axis=0)
-        embedding_matrix = embedding_matrix_1
-
-        # embedding_matrix = np.concatenate((embedding_matrix_1, embedding_matrix_2), axis=1)
-        print("Embedding matrix shape:", np.shape(embedding_matrix))
-
-        # del embedding_matrix_1, embedding_matrix_2
-        del embedding_matrix_1
 
         self.embedding.weight = nn.Parameter(torch.tensor(embedding_matrix, dtype=torch.float32))
         self.embedding.weight.requires_grad = False

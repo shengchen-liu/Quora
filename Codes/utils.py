@@ -299,8 +299,13 @@ def replace_typical_misspell(text):
     return mispellings_re.sub(replace, text)
 
 def load_and_prec(config):
-    train_df = pd.read_csv(config.train_data)
-    test_df = pd.read_csv(config.test_data)
+    # for debug
+    if config.sample == 1:
+        train_df = pd.read_csv(config.train_data, nrows=5)
+        test_df = pd.read_csv(config.test_data, nrows=5)
+    else:
+        train_df = pd.read_csv(config.train_data)
+        test_df = pd.read_csv(config.test_data)
     print("Train shape : ", train_df.shape)
     print("Test shape : ", test_df.shape)
 
@@ -324,10 +329,13 @@ def load_and_prec(config):
     train_X = train_df["question_text"].fillna("_##_").values
     test_X = test_df["question_text"].fillna("_##_").values
 
+    # merge two lists
+    all_X = np.concatenate((train_X, test_X), axis=0)
+
     ## Tokenize the sentences
     print("Tokenizing.......")
     tokenizer = Tokenizer(num_words=config.max_features)
-    tokenizer.fit_on_texts(list(train_X))
+    tokenizer.fit_on_texts(list(all_X))
     train_X = tokenizer.texts_to_sequences(train_X)
     test_X = tokenizer.texts_to_sequences(test_X)
     print("Tokenizing Done!")
@@ -362,10 +370,13 @@ def load_glove(word_index, embedding_dir, max_features):
     # word_index = tokenizer.word_index
     nb_words = min(max_features, len(word_index))
     embedding_matrix = np.random.normal(emb_mean, emb_std, (nb_words, embed_size))
+
+    # print(embedding_matrix.shape)
+
     for word, i in word_index.items():
         if i >= max_features: continue
         embedding_vector = embeddings_index.get(word)
-        if embedding_vector is not None: embedding_matrix[i] = embedding_vector
+        if embedding_vector is not None: embedding_matrix[i-1] = embedding_vector
 
     return embedding_matrix
 

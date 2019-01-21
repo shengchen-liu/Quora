@@ -16,9 +16,10 @@ class DefaultConfigs(object):
     initial_checkpoint = '0'
     gpus = "0"
     fold=5
-    model='baseline'
+    model='baseline_pytorch'
     embed_size = 300  # how big is each word vector
     max_features = 120000  # how many unique words to use (i.e num rows in embedding vector)
     maxlen = 72  # max number of words in a question to use
+    sample = 0 # for debug
 
 config = DefaultConfigs()

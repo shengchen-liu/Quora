@@ -1,7 +1,7 @@
 from common import *
 from config import *
 import utils
-from models.model import*
+from models import baseline_pytorch
 # import torchvision
 # import torchvision.transforms.functional as f
 # from torchvision import transforms as T
@@ -27,6 +27,8 @@ parser.add_argument("--FOLD", help="KFOLD",
                     default=5, type=int)
 parser.add_argument("--MODEL", help="BASE MODEL",
                     default="baseline", type=str)
+parser.add_argument("--SAMPLE", help="LOAD A SAMPLE SET FOR DEBUGGING",
+                    default=0, type=int)
 
 args = parser.parse_args()
 
@@ -39,6 +41,7 @@ config.gpus = args.GPUS
 config.lr = args.LR
 config.fold = args.FOLD
 config.model = args.MODEL
+config.sample = args.SAMPLE
 
 # 1. set random seed
 os.environ["CUDA_VISIBLE_DEVICES"] = config.gpus
@@ -87,11 +90,11 @@ def train(train_loader,model,loss_fn, optimizer,epoch,valid_loss,start):
         loss.backward()
         optimizer.step()
         
-        losses.update(loss.item(),x_batch.size(0))
+        losses.update(loss.item(),x_batch.shape[0])
 
         print('\r', end='', flush=True)
         message = '%s %5.1f %6.1f        |  %0.3f  |   %0.3f   | %s' % ( \
-            "train", i / len(train_loader) + epoch, epoch,
+            "train", i / len(train_loader) + epoch, epoch+1,
             losses.avg,
             valid_loss,
             utils.time_to_str((timer() - start), 'min'))
@@ -110,6 +113,17 @@ def evaluate(val_loader,model,loss_fn,epoch,train_loss,start_time):
     with torch.no_grad():
         for i, (x_batch, y_batch) in enumerate(val_loader):
             y_pred = model(x_batch)
+            loss = loss_fn(y_pred, y_batch)
+            losses.update(loss.item(),x_batch.shape[0])
+
+            print('\r', end='', flush=True)
+            message = '%s %5.1f %6.1f        |  %0.3f  |   %0.3f   | %s' % ( \
+                "val", i / len(val_loader) + epoch, epoch+1,
+                train_loss,
+                losses.avg,
+                utils.time_to_str((timer() - start_time), 'min'))
+            print(message, end='', flush=True)
+
             # Concatenate all every batch
             if i == 0:
                 total_output = y_pred
@@ -119,23 +133,12 @@ def evaluate(val_loader,model,loss_fn,epoch,train_loss,start_time):
                 total_target = torch.cat([total_target, y_batch], 0)
 
         # compute loss for the entire evaluation dataset
-        print("total_output:", total_output.shape)
-        print("total_target:", total_target.shape)
-        
-        val_loss = loss_fn(total_output, total_target)
-        losses.update(val_loss.item(),total_target.shape[0])
-        
-        print('\r', end='', flush=True)
-        message = '%s %5.1f %6.1f        |  %0.3f  |   %0.3f   | %s' % ( \
-            "val", epoch, epoch,
-            train_loss,
-            losses.avg,
-            utils.time_to_str((timer() - start_time), 'min'))
-        print(message, end='', flush=True)
+        # print("total_output:", total_output.shape)
+        # print("total_target:", total_target.shape)
 
         log.write("\n")
 
-    return losses.avg, sigmoid(total_output).cpu().data.numpy()[:, 0]
+    return losses.avg, total_output
 
 # 3. test model on public dataset and save the probability matrix
 def test(test_loader,model):
@@ -169,136 +172,142 @@ def main():
 
     start_time = time.time()
     train_X, test_X, train_y, word_index = utils.load_and_prec(config)
-    # embedding_matrix_1 = load_glove(word_index)
-    # embedding_matrix_2 = load_para(word_index)
+    embedding_matrix_1 = utils.load_glove(word_index, config.embedding_dir, config.max_features)
+    embedding_matrix_2 = utils.load_para(word_index, config.embedding_dir, config.max_features)
 
     total_time = (time.time() - start_time) / 60
     print("Took {:.2f} minutes".format(total_time))
 
-    # # embedding_matrix = np.mean([embedding_matrix_1, embedding_matrix_2], axis=0)
-    # embedding_matrix = embedding_matrix_1
+    embedding_matrix = np.mean([embedding_matrix_1, embedding_matrix_2], axis=0)
     #
     # # embedding_matrix = np.concatenate((embedding_matrix_1, embedding_matrix_2), axis=1)
-    # print(np.shape(embedding_matrix))
+    print(np.shape(embedding_matrix))
     #
-    # # del embedding_matrix_1, embedding_matrix_2
+    # del embedding_matrix_1, embedding_matrix_2
     # del embedding_matrix_1
 
     # -------------------------------------------------------
-# training
-# -------------------------------------------------------
-train_preds = np.zeros((len(train_X)))
-test_preds = np.zeros((len(test_X)))
+    # training
+    # -------------------------------------------------------
+    train_preds = np.zeros((len(train_X)))
+    test_preds = np.zeros((len(test_X)))
 
-x_test_cuda = torch.tensor(test_X, dtype=torch.long).cuda()
-test_dataset = torch.utils.data.TensorDataset(x_test_cuda)
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
+    x_test_cuda = torch.tensor(test_X, dtype=torch.long).cuda()
+    test_dataset = torch.utils.data.TensorDataset(x_test_cuda)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
 
-splits = list(StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED).split(train_X, train_y))
+    splits = list(StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED).split(train_X, train_y))
 
-sigmoid = nn.Sigmoid()
-loss_fn = torch.nn.BCEWithLogitsLoss(reduction="sum")
+    sigmoid = nn.Sigmoid()
+    loss_fn = torch.nn.BCEWithLogitsLoss(reduction="mean")
 
-# k-fold
-for fold, (train_idx, valid_idx) in enumerate(splits):
-    print(f'Fold {fold + 1}')
 
-    # tflogger
-    tflogger = utils.TFLogger(os.path.join('results', 'TFlogs',
-                                     config.model_name + "_fold{0}_{1}".format(config.fold, fold)))
-    # initialize the early_stopping object
-    early_stopping = utils.EarlyStopping(patience=7, verbose=True)
 
-    x_train_fold = torch.tensor(train_X[train_idx], dtype=torch.long).cuda()
-    y_train_fold = torch.tensor(train_y[train_idx, np.newaxis], dtype=torch.float32).cuda()
-    x_val_fold = torch.tensor(train_X[valid_idx], dtype=torch.long).cuda()
-    y_val_fold = torch.tensor(train_y[valid_idx, np.newaxis], dtype=torch.float32).cuda()
+    # k-fold
+    for fold, (train_idx, valid_idx) in enumerate(splits):
+        print(f'Fold {fold + 1}')
 
-    model = Baseline_Bidir_LSTM_GRU(config, word_index)
-    model.cuda()
+        # tflogger
+        tflogger = utils.TFLogger(os.path.join('results', 'TFlogs',
+                                         config.model_name + "_fold{0}_{1}".format(config.fold, fold)))
+        # initialize the early_stopping object
+        early_stopping = utils.EarlyStopping(patience=7, verbose=True)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+        x_train_fold = torch.tensor(train_X[train_idx], dtype=torch.long).cuda()
+        y_train_fold = torch.tensor(train_y[train_idx, np.newaxis], dtype=torch.float32).cuda()
+        x_val_fold = torch.tensor(train_X[valid_idx], dtype=torch.long).cuda()
+        y_val_fold = torch.tensor(train_y[valid_idx, np.newaxis], dtype=torch.float32).cuda()
 
-    train_dataset = torch.utils.data.TensorDataset(x_train_fold, y_train_fold)
-    valid_dataset = torch.utils.data.TensorDataset(x_val_fold, y_val_fold)
+        if config.model == "baseline_bidir_LSTM_GRU":
+            model = models.baseline_bidir_LSTM_GRU.model(config, embedding_matrix)
+        elif config.model == "baseline_pytorch":
+            model = baseline_pytorch.NeuralNet(config, embedding_matrix)
+            
+        model.cuda()
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=config.batch_size, shuffle=False)
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
-    valid_loss = np.inf
-    start_time = timer()
-    for epoch in range(config.epochs):
-        # train
-        lr = utils.get_learning_rate(optimizer)
-        train_loss = train(train_loader=train_loader,model=model,loss_fn=loss_fn, optimizer=optimizer,
-                           epoch=epoch,valid_loss=valid_loss,start=start_time)
+        train_dataset = torch.utils.data.TensorDataset(x_train_fold, y_train_fold)
+        valid_dataset = torch.utils.data.TensorDataset(x_val_fold, y_val_fold)
 
-        # validate
-        valid_loss, valid_output = evaluate(val_loader=valid_loader, model=model, loss_fn=loss_fn, epoch=epoch,
-                                            train_loss=train_loss, start_time=start_time)
-        test_preds_fold = np.zeros(len(test_X))
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
+        valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=config.batch_size, shuffle=False)
 
-        # save model
-        utils.save_checkpoint({
-            "epoch": epoch,
-            "model_name": config.model_name,
-            "state_dict": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "fold": config.fold,
-            "kfold": config.fold,
-        },config.fold, fold, config)
-        # print logs
-        print('\r', end='', flush=True)
+        valid_loss = np.inf
+        start_time = timer()
+        for epoch in range(config.epochs):
+            # train
+            lr = utils.get_learning_rate(optimizer)
+            train_loss = train(train_loader=train_loader,model=model,loss_fn=loss_fn, optimizer=optimizer,
+                               epoch=epoch,valid_loss=valid_loss,start=start_time)
 
-        log.write("\n")
-        time.sleep(0.01)
+            # validate
+            valid_loss, valid_output = evaluate(val_loader=valid_loader, model=model, loss_fn=loss_fn, epoch=epoch,
+                                                train_loss=train_loss, start_time=start_time)
+            test_preds_fold = np.zeros(len(test_X))
 
-        # ================================================================== #
-        #                        Tensorboard Logging                         #
-        # ================================================================== #
+            # save model
+            utils.save_checkpoint({
+                "epoch": epoch,
+                "model_name": config.model_name,
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "fold": config.fold,
+                "kfold": config.fold,
+            },config.fold, fold, config)
+            # print logs
+            print('\r', end='', flush=True)
 
-        # 1. Log scalar values (scalar summary)
-        info = {'Train_loss': train_loss,
-                'Valid_loss': valid_loss,
-                'Learnging_rate': lr}
+            log.write("\n")
+            time.sleep(0.01)
 
-        for tag, value in info.items():
-            tflogger.scalar_summary(tag, value, epoch)
+            # ================================================================== #
+            #                        Tensorboard Logging                         #
+            # ================================================================== #
 
-        # 2. Log values and gradients of the parameters (histogram summary)
-        for tag, value in model.named_parameters():
-            tag = tag.replace('.', '/')
-            tflogger.histo_summary(tag, value.data.cpu().numpy(), epoch)
-            if not value.grad is None:
-                tflogger.histo_summary(tag + '/grad', value.grad.data.cpu().numpy(), epoch)
-        # -------------------------------------
-        # end tflogger
+            # 1. Log scalar values (scalar summary)
+            info = {'Train_loss': train_loss,
+                    'Valid_loss': valid_loss,
+                    'Learnging_rate': lr}
 
-        # ================================================================== #
-        #                        Early stopping                         #
-        # ================================================================== #
-        # early_stopping needs the validation loss to check if it has decresed,
-        # and if it has, it will make a checkpoint of the current model
-        early_stopping(valid_loss, model)
+            for tag, value in info.items():
+                tflogger.scalar_summary(tag, value, epoch)
 
-        if early_stopping.early_stop:
-            print("Early stopping")
-            break
+            # 2. Log values and gradients of the parameters (histogram summary)
+            for tag, value in model.named_parameters():
+                tag = tag.replace('.', '/')
+                tflogger.histo_summary(tag, value.data.cpu().numpy(), epoch)
+                if not value.grad is None:
+                    tflogger.histo_summary(tag + '/grad', value.grad.data.cpu().numpy(), epoch)
+            # -------------------------------------
+            # end tflogger
 
-    # end looping all epochs
-    train_preds[valid_idx] = valid_output
-    # test
-    test_preds_fold = test(test_loader=test_loader, model=model)
-    test_preds += test_preds_fold / len(splits)
+            # ================================================================== #
+            #                        Early stopping                         #
+            # ================================================================== #
+            # early_stopping needs the validation loss to check if it has decresed,
+            # and if it has, it will make a checkpoint of the current model
+            early_stopping(valid_loss, model)
 
-# end k-fold
-search_result = threshold_search(train_y, train_preds)
-print(search_result)
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
 
-sub = pd.read_csv('../input/sample_submission.csv')
-sub.prediction = test_preds > search_result['threshold']
-sub.to_csv("submission_{0}.csv".format(config.model_name), index=False)
+        # end looping all epochs
+        train_preds[valid_idx] = sigmoid(valid_output).cpu().data.numpy()[:, 0]
+        # test
+        test_preds_fold = test(test_loader=test_loader, model=model)
+        test_preds += test_preds_fold / len(splits)
 
-print('Test successful!')
+    # end k-fold
+    search_result = threshold_search(train_y, train_preds)
+    print(search_result)
+
+    sub = pd.read_csv('../input/sample_submission.csv')
+    sub.prediction = test_preds > search_result['threshold']
+    sub.to_csv("submission_{0}.csv".format(config.model_name), index=False)
+
+    print('Test successful!')
+    
 if __name__ == "__main__":
     main()
