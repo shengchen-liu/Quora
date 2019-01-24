@@ -301,8 +301,8 @@ def replace_typical_misspell(text):
 def load_and_prec(config):
     # for debug
     if config.sample == 1:
-        train_df = pd.read_csv(config.train_data, nrows=5)
-        test_df = pd.read_csv(config.test_data, nrows=5)
+        train_df = pd.read_csv(config.train_data, nrows=20)
+        test_df = pd.read_csv(config.test_data, nrows=20)
     else:
         train_df = pd.read_csv(config.train_data)
         test_df = pd.read_csv(config.test_data)
@@ -398,7 +398,7 @@ def load_para(word_index, embedding_dir, max_features):
     for word, i in word_index.items():
         if i >= max_features: continue
         embedding_vector = embeddings_index.get(word)
-        if embedding_vector is not None: embedding_matrix[i] = embedding_vector
+        if embedding_vector is not None: embedding_matrix[i-1] = embedding_vector
 
     return embedding_matrix
 

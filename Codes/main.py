@@ -210,7 +210,7 @@ def main():
         print(f'Fold {fold + 1}')
 
         # tflogger
-        tflogger = utils.TFLogger(os.path.join('results', 'TFlogs',
+        tflogger = utils.TFLogger(os.path.join('../results', 'TFlogs',
                                          config.model_name + "_fold{0}_{1}".format(config.fold, fold)))
         # initialize the early_stopping object
         early_stopping = utils.EarlyStopping(patience=7, verbose=True)
