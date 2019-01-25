@@ -44,7 +44,7 @@ def save_checkpoint(state,is_best_loss, fold, kfold, config):
     # save best_loss
     if is_best_loss:
         shutil.copyfile(filename, "{0}{1}/fold_{2}/fold_{3}_model_best_loss.pth.tar".
-                        format(config.beset_models, config.model_name, str(fold), kfold))
+                        format(config.best_models, config.model_name, str(fold), kfold))
 
 # get learning rate
 def get_learning_rate(optimizer):

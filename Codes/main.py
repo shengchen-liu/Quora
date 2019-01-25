@@ -259,6 +259,9 @@ def main():
 
             # check results
             is_best_loss = valid_loss < best_loss
+            if is_best_loss:
+                best_epoch = epoch
+                best_train_loss = train_loss
             # update best loss
             best_loss = min(valid_loss, best_loss)
 
@@ -273,6 +276,13 @@ def main():
             },is_best_loss, config.fold, fold, config)
             # print logs
             print('\r', end='', flush=True)
+
+            message = '%s %5.1f %6.1f  %.2E |  %0.3f  |   %0.3f   | %s' % ( \
+                "best", best_epoch, best_epoch, Decimal(lr),
+                best_train_loss,
+                best_loss,
+                utils.time_to_str((timer() - start_time), 'min'))
+            log.write(message)
 
             log.write("\n")
             time.sleep(0.01)
