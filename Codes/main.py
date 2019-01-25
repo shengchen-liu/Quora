@@ -64,8 +64,8 @@ log.open('{0}{1}_log_train.txt'.format(config.logs, config.model_name),mode="a")
 for arg in vars(args):
     log.write('{0}:{1}\n'.format(arg, getattr(args, arg)))
 log.write("\n-------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
-log.write('                          |------ Train ------|------ Valid ------|------------|\n')
-log.write('mode    iter   epoch    lr|       loss        |       loss        | time       |\n')
+log.write('                             |------ Train ------|------ Valid ------|------------|\n')
+log.write('mode    iter   epoch    lr   |       loss        |       loss        | time       |\n')
 log.write('------------------------------------------------------------------------------- \n')
 
 def threshold_search(y_true, y_proba):
@@ -93,7 +93,7 @@ def train(train_loader,model,loss_fn, optimizer,epoch,valid_loss,start):
         losses.update(loss.item(),x_batch.shape[0])
 
         print('\r', end='', flush=True)
-        message = '%s %5.1f %6.1f        |  %0.3f  |   %0.3f   | %s' % ( \
+        message = '%s %5.1f %6.1f           |       %0.3f         |       %0.3f         | %s' % ( \
             "train", i / len(train_loader) + epoch, epoch+1,
             losses.avg,
             valid_loss,
@@ -120,7 +120,7 @@ def evaluate(val_loader,model,loss_fn,epoch,train_loss,start_time):
             losses.update(loss.item(),x_batch.shape[0])
 
             print('\r', end='', flush=True)
-            message = '%s %5.1f %6.1f        |  %0.3f  |   %0.3f   | %s' % ( \
+            message = '%s   %5.1f %6.1f           |       %0.3f         |       %0.3f         | %s' % ( \
                 "val", i / len(val_loader) + epoch, epoch+1,
                 train_loss,
                 losses.avg,
@@ -283,7 +283,7 @@ def main():
             # print logs
             print('\r', end='', flush=True)
 
-            message = '%s %5.1f %6.1f  %.2E |  %0.3f  |   %0.3f   | %s' % ( \
+            message = '%s  %5.1f %6.1f  %.2E |       %0.3f         |       %0.3f         | %s' % ( \
                 "best", best_epoch, best_epoch, Decimal(lr),
                 best_train_loss,
                 best_loss,
