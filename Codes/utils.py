@@ -71,7 +71,7 @@ class EarlyStopping:
         self.patience = patience
         self.verbose = verbose
         self.counter = 0
-        self.best_score = None
+        self.best_score = np.inf
         self.early_stop = False
         self.val_loss_min = np.Inf
 
