@@ -36,10 +36,15 @@ def time_to_str(t, mode='min'):
     else:
         raise NotImplementedError
 # save best NeuralNet
-def save_checkpoint(state,fold, kfold, config):
+def save_checkpoint(state,is_best_loss, fold, kfold, config):
     filename = '{0}{1}/fold_{2}/checkpoint_{3}_fold{4}.pth.tar'.format(
         config.weights, config.model_name, str(fold), state['epoch'], kfold)
     torch.save(state, filename)
+
+    # save best_loss
+    if is_best_loss:
+        shutil.copyfile(filename, "{0}{1}/fold_{2}/fold_{3}_model_best_loss.pth.tar".
+                        format(config.beset_models, config.model_name, str(fold), kfold))
 
 # get learning rate
 def get_learning_rate(optimizer):

@@ -241,6 +241,9 @@ def main():
         valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=config.batch_size, shuffle=False)
 
         valid_loss = np.inf
+
+        # initialize best loss
+        best_loss = np.inf
         start_time = timer()
         for epoch in range(config.epochs):
             scheduler.step(epoch)
@@ -254,6 +257,11 @@ def main():
                                                 train_loss=train_loss, start_time=start_time)
             test_preds_fold = np.zeros(len(test_X))
 
+            # check results
+            is_best_loss = valid_loss < best_loss
+            # update best loss
+            best_loss = min(valid_loss, best_loss)
+
             # save NeuralNet
             utils.save_checkpoint({
                 "epoch": epoch,
@@ -262,7 +270,7 @@ def main():
                 "optimizer": optimizer.state_dict(),
                 "fold": config.fold,
                 "kfold": config.fold,
-            },config.fold, fold, config)
+            },is_best_loss, config.fold, fold, config)
             # print logs
             print('\r', end='', flush=True)
 
@@ -303,7 +311,13 @@ def main():
 
         # end looping all epochs
         train_preds[valid_idx] = sigmoid(valid_output).cpu().data.numpy()[:, 0]
+
         # test
+        checkpoint_path = os.path.join("{0}{1}/fold_{2}/fold_{3}_model_best_loss.pth.tar".
+                        format(config.beset_models, config.model_name, str(fold), fold))
+
+        best_model = torch.load(checkpoint_path)
+        model.load_state_dict(best_model["state_dict"])
         test_preds_fold = test(test_loader=test_loader, model=model)
         test_preds += test_preds_fold / len(splits)
 
