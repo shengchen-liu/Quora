@@ -11,7 +11,7 @@ class DefaultConfigs(object):
     model_name = "Baseline"
     lr = 1e-3
     batch_size = 1536
-    epochs = 8
+    epochs = 20
     resume = True
     initial_checkpoint = '0'
     gpus = "0"
