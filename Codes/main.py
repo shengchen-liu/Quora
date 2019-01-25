@@ -330,7 +330,7 @@ def main():
 
         # test
         checkpoint_path = os.path.join("{0}{1}/fold_{2}/fold_{3}_model_best_loss.pth.tar".
-                        format(config.best_models, config.model_name, str(fold), fold))
+                        format(config.best_models, config.model_name, str(config.fold), fold))
 
         best_model = torch.load(checkpoint_path)
         model.load_state_dict(best_model["state_dict"])
