@@ -1,7 +1,7 @@
 from common import *
 from config import *
 import utils
-from models import baseline_pytorch, baseline_bidir_LSTM_GRU
+from models import baseline_pytorch, baseline_bidir_LSTM_GRU, baseline_lstm_gru_attention
 # import torchvision
 # import torchvision.transforms.functional as f
 # from torchvision import transforms as T
@@ -224,6 +224,8 @@ def main():
             model = baseline_bidir_LSTM_GRU.NeuralNet(config, embedding_matrix)
         elif config.model == "baseline_pytorch":
             model = baseline_pytorch.NeuralNet(config, embedding_matrix)
+        elif config.model == "baseline_lstm_gru_attention":
+            model = baseline_lstm_gru_attention.NeuralNet(config, embedding_matrix)
             
         model.cuda()
 
