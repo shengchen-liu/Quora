@@ -99,6 +99,7 @@ def train(train_loader,model,loss_fn, optimizer,epoch,valid_loss,start):
             valid_loss,
             utils.time_to_str((timer() - start), 'min'))
         print(message, end='', flush=True)
+    log.write(message)
     log.write("\n")
     return losses.avg
 
@@ -135,7 +136,7 @@ def evaluate(val_loader,model,loss_fn,epoch,train_loss,start_time):
         # compute loss for the entire evaluation dataset
         # print("total_output:", total_output.shape)
         # print("total_target:", total_target.shape)
-
+        log.write(message)
         log.write("\n")
 
     return losses.avg, total_output
@@ -334,6 +335,7 @@ def main():
     # end k-fold
     search_result = threshold_search(train_y, train_preds)
     print(search_result)
+    log.write(search_result)
 
     sub = pd.read_csv('../input/sample_submission.csv')
     sub.prediction = test_preds > search_result['threshold']

@@ -47,7 +47,7 @@ def save_checkpoint(state,is_best_loss, fold, kfold, config):
             config.best_models, config.model_name, str(fold), kfold)
         if not os.path.exists(best_model_path):
             os.mkdir(best_model_path)
-            
+
         shutil.copyfile(filename, best_model_path)
 
 # get learning rate
