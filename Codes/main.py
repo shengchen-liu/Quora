@@ -168,6 +168,8 @@ def main():
         os.mkdir(config.best_models)
     if not os.path.exists(config.logs):
         os.mkdir(config.logs)
+    if not os.path.exists(config.best_models + config.model_name ):
+        os.mkdir(config.best_models + config.model_name)
     if not os.path.exists(config.best_models + config.model_name + os.sep + 'fold_'+str(config.fold)):
         os.mkdir(config.best_models + config.model_name + os.sep + 'fold_'+str(config.fold))
     tqdm.pandas()
