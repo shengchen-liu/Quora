@@ -231,6 +231,9 @@ def main():
 
         optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
+        # scheduler
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+
         train_dataset = torch.utils.data.TensorDataset(x_train_fold, y_train_fold)
         valid_dataset = torch.utils.data.TensorDataset(x_val_fold, y_val_fold)
 
@@ -240,6 +243,7 @@ def main():
         valid_loss = np.inf
         start_time = timer()
         for epoch in range(config.epochs):
+            scheduler.step(epoch)
             # train
             lr = utils.get_learning_rate(optimizer)
             train_loss = train(train_loader=train_loader,model=model,loss_fn=loss_fn, optimizer=optimizer,
