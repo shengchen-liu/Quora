@@ -168,7 +168,8 @@ def main():
         os.mkdir(config.best_models)
     if not os.path.exists(config.logs):
         os.mkdir(config.logs)
-
+    if not os.path.exists(config.best_models + config.model_name + os.sep + 'fold_'+str(config.fold)):
+        os.mkdir(config.best_models + config.model_name + os.sep + 'fold_'+str(config.fold))
     tqdm.pandas()
 
     start_time = time.time()
@@ -325,7 +326,7 @@ def main():
 
         # test
         checkpoint_path = os.path.join("{0}{1}/fold_{2}/fold_{3}_model_best_loss.pth.tar".
-                        format(config.beset_models, config.model_name, str(fold), fold))
+                        format(config.best_models, config.model_name, str(fold), fold))
 
         best_model = torch.load(checkpoint_path)
         model.load_state_dict(best_model["state_dict"])
