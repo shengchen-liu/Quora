@@ -99,6 +99,8 @@ def train(train_loader,model,loss_fn, optimizer,epoch,valid_loss,start):
             valid_loss,
             utils.time_to_str((timer() - start), 'min'))
         print(message, end='', flush=True)
+
+    log.write("\n")
     log.write(message)
     log.write("\n")
     return losses.avg
