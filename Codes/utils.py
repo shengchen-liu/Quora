@@ -77,14 +77,15 @@ class EarlyStopping:
 
     def __call__(self, val_loss, model):
 
-        score = -val_loss
+        score = val_loss
+        print("score:", score)
 
         # this is for f1_score
         # score = val_loss
 
         if self.best_score is None:
             self.best_score = score
-        elif score < self.best_score:
+        elif score > self.best_score:
             self.counter += 1
             print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
             if self.counter >= self.patience:
