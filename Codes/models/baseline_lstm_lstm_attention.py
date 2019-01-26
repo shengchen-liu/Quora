@@ -38,13 +38,13 @@ class NeuralNet(nn.Module):
         h_lstm1, _ = self.lstm1(h_embedding) # (batch_size, seq_len, 2*hidden_size)
         h_lstm2, _ = self.lstm2(h_lstm1)
 
-        h_lstm_atten = self.lstm_attention(h_lstm1)
-        h_gru_atten = self.gru_attention(h_lstm2)
+        h_lstm1_atten = self.lstm1_attention(h_lstm1)
+        h_lstm2_atten = self.lstm2_attention(h_lstm2)
 
         avg_pool = torch.mean(h_lstm2, 1)
         max_pool, _ = torch.max(h_lstm2, 1)
 
-        conc = torch.cat((h_lstm_atten, h_gru_atten, avg_pool, max_pool), 1)
+        conc = torch.cat((h_lstm1_atten, h_lstm2_atten, avg_pool, max_pool), 1)
         conc = self.relu(self.linear(conc))
         conc = self.dropout(conc)
         out = self.out(conc)
