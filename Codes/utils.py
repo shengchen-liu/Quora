@@ -78,7 +78,7 @@ class EarlyStopping:
     def __call__(self, val_loss, model):
 
         score = val_loss
-        print("score:", score)
+        # print("score:", score)
 
         # this is for f1_score
         # score = val_loss
@@ -340,7 +340,11 @@ def load_and_prec(config):
 
     ## Tokenize the sentences
     print("Tokenizing.......")
-    tokenizer = Tokenizer(num_words=config.max_features)
+    if config.max_features > 0:
+        tokenizer = Tokenizer(num_words=config.max_features)
+    else:
+        tokenizer = Tokenizer(num_words=None)
+
     tokenizer.fit_on_texts(list(all_X))
     train_X = tokenizer.texts_to_sequences(train_X)
     test_X = tokenizer.texts_to_sequences(test_X)
@@ -373,15 +377,20 @@ def load_glove(word_index, embedding_dir, max_features):
     emb_mean, emb_std = all_embs.mean(), all_embs.std()
     embed_size = all_embs.shape[1]
 
-    # word_index = tokenizer.word_index
-    nb_words = min(max_features, len(word_index))
+    if max_features > 0:
+        nb_words = min(max_features, len(word_index))
+    else:
+        nb_words = len(word_index)
     embedding_matrix = np.random.normal(emb_mean, emb_std, (nb_words, embed_size))
 
     # print(embedding_matrix.shape)
 
     for word, i in word_index.items():
-        if i >= max_features: continue
-        embedding_vector = embeddings_index.get(word)
+        if max_features > 0:
+            if i >= max_features: continue
+            embedding_vector = embeddings_index.get(word)
+        else: # no limit on max_feature
+            embedding_vector = embeddings_index.get(word)
         if embedding_vector is not None: embedding_matrix[i-1] = embedding_vector
 
     return embedding_matrix
@@ -398,12 +407,17 @@ def load_para(word_index, embedding_dir, max_features):
     emb_mean, emb_std = all_embs.mean(), all_embs.std()
     embed_size = all_embs.shape[1]
 
-    # word_index = tokenizer.word_index
-    nb_words = min(max_features, len(word_index))
+    if max_features > 0:
+        nb_words = min(max_features, len(word_index))
+    else:
+        nb_words = len(word_index)
     embedding_matrix = np.random.normal(emb_mean, emb_std, (nb_words, embed_size))
     for word, i in word_index.items():
-        if i >= max_features: continue
-        embedding_vector = embeddings_index.get(word)
+        if max_features > 0:
+            if i >= max_features: continue
+            embedding_vector = embeddings_index.get(word)
+        else: # no limit on max_feature
+            embedding_vector = embeddings_index.get(word)
         if embedding_vector is not None: embedding_matrix[i-1] = embedding_vector
 
     return embedding_matrix

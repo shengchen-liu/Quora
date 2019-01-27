@@ -93,7 +93,7 @@ def train(train_loader,model,loss_fn, optimizer,epoch,valid_loss,start):
         losses.update(loss.item(),x_batch.shape[0])
 
         print('\r', end='', flush=True)
-        message = '%s %5.1f %6.1f           |       %0.3f        |       %0.3f         | %s' % ( \
+        message = '%s %5.1f %6.1f           |       %0.3f        |       %0.3f       | %s' % ( \
             "train", i / len(train_loader) + epoch, epoch+1,
             losses.avg,
             valid_loss,
