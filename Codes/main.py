@@ -336,6 +336,7 @@ def main():
                         format(config.best_models, config.model_name, str(config.fold), fold))
 
         best_model = torch.load(checkpoint_path)
+        print("Test on epoch:", best_model['epoch'])
         model.load_state_dict(best_model["state_dict"])
         test_preds_fold = test(test_loader=test_loader, model=model)
         test_preds += test_preds_fold / len(splits)
