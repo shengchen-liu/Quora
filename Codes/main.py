@@ -347,7 +347,7 @@ def main():
     # end k-fold
     search_result = threshold_search(train_y, train_preds)
     print(search_result)
-    log.write(search_result)
+    log.write("Threshold:{0},    f1:{1}".format(search_result['threshold'], search_result['f1']))
 
     sub = pd.read_csv('../input/sample_submission.csv')
     sub.prediction = test_preds > search_result['threshold']
