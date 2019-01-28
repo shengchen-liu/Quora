@@ -31,6 +31,9 @@ parser.add_argument("--SAMPLE", help="LOAD A SAMPLE SET FOR DEBUGGING",
                     default=0, type=int)
 parser.add_argument("--MAX_FEATURES", help="Max features",
                     default=-1, type=int)
+parser.add_argument("--EMBED_SIZE", help="Length of embedding vector",
+                    default=300, type=int)
+
 
 args = parser.parse_args()
 
@@ -45,6 +48,7 @@ config.fold = args.FOLD
 config.model = args.MODEL
 config.sample = args.SAMPLE
 config.max_features = args.MAX_FEATURES
+config.embed_size = args.EMBED_SIZE
 
 # 1. set random seed
 os.environ["CUDA_VISIBLE_DEVICES"] = config.gpus
