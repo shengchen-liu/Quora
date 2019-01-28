@@ -248,7 +248,7 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
         # scheduler
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
         train_dataset = torch.utils.data.TensorDataset(x_train_fold, y_train_fold)
         valid_dataset = torch.utils.data.TensorDataset(x_val_fold, y_val_fold)
