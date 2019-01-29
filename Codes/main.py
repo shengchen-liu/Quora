@@ -195,9 +195,9 @@ def main():
     total_time = (time.time() - start_time) / 60
     print("Took {:.2f} minutes".format(total_time))
 
-    # embedding_matrix = np.mean([embedding_matrix_1, embedding_matrix_2, embedding_matrix_3], axis=0)
+    embedding_matrix = np.mean([embedding_matrix_1, embedding_matrix_2, embedding_matrix_3], axis=0)
     #
-    embedding_matrix = np.concatenate((embedding_matrix_1, embedding_matrix_2, embedding_matrix_3), axis=1)
+    # embedding_matrix = np.concatenate((embedding_matrix_1, embedding_matrix_2, embedding_matrix_3), axis=1)
     print(np.shape(embedding_matrix))
     #
     # del embedding_matrix_1, embedding_matrix_2
