@@ -21,5 +21,6 @@ class DefaultConfigs(object):
     max_features = 120000  # how many unique words to use (i.e num rows in embedding vector)
     maxlen = 72  # max number of words in a question to use
     sample = 0 # for debug
+    embed_method = "mean" # concat or mean
 
 config = DefaultConfigs()

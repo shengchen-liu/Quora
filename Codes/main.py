@@ -33,6 +33,8 @@ parser.add_argument("--MAX_FEATURES", help="Max features",
                     default=-1, type=int)
 parser.add_argument("--EMBED_SIZE", help="Length of embedding vector",
                     default=300, type=int)
+parser.add_argument("--EMBED_METHOD", help="Concate or mean",
+                    default="mean", type=str)
 
 
 args = parser.parse_args()
@@ -49,6 +51,7 @@ config.model = args.MODEL
 config.sample = args.SAMPLE
 config.max_features = args.MAX_FEATURES
 config.embed_size = args.EMBED_SIZE
+config.embed_method = args.EMBED_METHOD
 
 # 1. set random seed
 os.environ["CUDA_VISIBLE_DEVICES"] = config.gpus
@@ -195,9 +198,10 @@ def main():
     total_time = (time.time() - start_time) / 60
     print("Took {:.2f} minutes".format(total_time))
 
-    embedding_matrix = np.mean([embedding_matrix_1, embedding_matrix_2, embedding_matrix_3], axis=0)
-    #
-    # embedding_matrix = np.concatenate((embedding_matrix_1, embedding_matrix_2, embedding_matrix_3), axis=1)
+    if config.embed_method == "mean":
+        embedding_matrix = np.mean([embedding_matrix_1, embedding_matrix_2, embedding_matrix_3], axis=0)
+    elif config.embed_method =="concat":
+        embedding_matrix = np.concatenate((embedding_matrix_1, embedding_matrix_2, embedding_matrix_3), axis=1)
     print(np.shape(embedding_matrix))
     #
     # del embedding_matrix_1, embedding_matrix_2
