@@ -422,6 +422,36 @@ def load_para(word_index, embedding_dir, max_features):
 
     return embedding_matrix
 
+def load_fasttext(word_index, embedding_dir, max_features):
+    EMBEDDING_FILE = os.path.join(embedding_dir, "wiki-news-300d-1M", "wiki-news-300d-1M.vec")
+    def get_coefs(word, *arr):
+        return word, np.asarray(arr, dtype='float32')
+
+
+    embeddings_index = dict(get_coefs(*o.split(" ")) for o in open(EMBEDDING_FILE) if len(o) > 100)
+
+    all_embs = np.stack(embeddings_index.values())
+    emb_mean, emb_std = all_embs.mean(), all_embs.std()
+    embed_size = all_embs.shape[1]
+
+    if max_features > 0:
+        nb_words = min(max_features, len(word_index))
+    else:
+        nb_words = len(word_index)
+
+    embedding_matrix = np.random.normal(emb_mean, emb_std, (nb_words, embed_size))
+    for word, i in word_index.items():
+        if max_features > 0:
+            if i >= max_features: continue
+            embedding_vector = embeddings_index.get(word)
+        else:  # no limit on max_feature
+            embedding_vector = embeddings_index.get(word)
+        if embedding_vector is not None: embedding_matrix[i-1] = embedding_vector
+
+    return embedding_matrix
+
+
+
 
 
 
