@@ -35,6 +35,8 @@ parser.add_argument("--EMBED_SIZE", help="Length of embedding vector",
                     default=300, type=int)
 parser.add_argument("--EMBED_METHOD", help="Concate or mean",
                     default="mean", type=str)
+parser.add_argument("--MAX_LEN", help="Maximum length for a sentence",
+                    default=72, type=int)
 
 
 args = parser.parse_args()
@@ -52,6 +54,7 @@ config.sample = args.SAMPLE
 config.max_features = args.MAX_FEATURES
 config.embed_size = args.EMBED_SIZE
 config.embed_method = args.EMBED_METHOD
+config.maxlen = args.MAX_LEN
 
 # 1. set random seed
 os.environ["CUDA_VISIBLE_DEVICES"] = config.gpus
