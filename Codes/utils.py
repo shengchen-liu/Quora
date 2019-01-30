@@ -331,12 +331,12 @@ def load_and_prec(config):
     for df in ([train_df, test_df]):
         df["badwordcount"] = df['question_text'].apply(lambda comment: sum(comment.count(w) for w in bad_words))
 
-    #  nouns, verbs, adjs, count_words_title
-    print(">> Generating POS Features")
-    for df in ([train_df, test_df]):
-        df['nouns'], df['adjectives'], df['verbs'] = zip(*df['question_text'].apply(
-            lambda comment: tag_part_of_speech(comment)))
-        df["count_words_title"] = df["question_text"].apply(lambda x: len([w for w in str(x).split() if w.istitle()]))
+    # #  nouns, verbs, adjs, count_words_title
+    # print(">> Generating POS Features")
+    # for df in ([train_df, test_df]):
+    #     df['nouns'], df['adjectives'], df['verbs'] = zip(*df['question_text'].apply(
+    #         lambda comment: tag_part_of_speech(comment)))
+    #     df["count_words_title"] = df["question_text"].apply(lambda x: len([w for w in str(x).split() if w.istitle()]))
 
     train_meta = train_df.copy().drop(columns=['qid', 'question_text', 'target']).values
     test_meta = test_df.copy().drop(columns=['qid', 'question_text', ]).values
