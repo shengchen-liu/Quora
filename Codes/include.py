@@ -78,6 +78,14 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import f1_score, roc_auc_score
 
 
+import string
+import nltk
+nltk.download('averaged_perceptron_tagger')
+from nltk import pos_tag
+from nltk.corpus import stopwords
+from nltk.tokenize import TweetTokenizer
+
+
 # constant #
 PI  = np.pi
 INF = np.inf
