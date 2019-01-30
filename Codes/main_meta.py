@@ -2,7 +2,7 @@ from common import *
 from config import *
 import utils
 from models import baseline_pytorch, baseline_bidir_LSTM_GRU, baseline_lstm_gru_attention, \
-    baseline_lstm_lstm_attention, baseline_lstm_gru_attention_meta
+    baseline_lstm_lstm_attention, lstm_gru_attention_meta
 from data import *
 
 # import torchvision
@@ -224,6 +224,7 @@ def main():
 
     x_test_cuda = torch.tensor(test_X, dtype=torch.long).cuda()
     # test_dataset = torch.utils.data.TensorDataset(x_test_cuda)
+    test_meta = torch.tensor(test_meta, dtype=torch.float32).cuda()
     test_dataset = QuoraDataset(mode='test', x_meta=test_meta, x_fold=x_test_cuda )
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
 
@@ -248,8 +249,8 @@ def main():
         y_train_fold = torch.tensor(train_y[train_idx, np.newaxis], dtype=torch.float32).cuda()
         x_val_fold = torch.tensor(train_X[valid_idx], dtype=torch.long).cuda()
         y_val_fold = torch.tensor(train_y[valid_idx, np.newaxis], dtype=torch.float32).cuda()
-        meta_train_fold = torch.tensor(train_meta[train_idx], dtype=torch.long).cuda()
-        meta_val_fold = torch.tensor(train_meta[valid_idx], dtype=torch.long).cuda()
+        meta_train_fold = torch.tensor(train_meta[train_idx], dtype=torch.float32).cuda()
+        meta_val_fold = torch.tensor(train_meta[valid_idx], dtype=torch.float32).cuda()
 
         if config.model == "baseline_bidir_LSTM_GRU":
             model = baseline_bidir_LSTM_GRU.NeuralNet(config, embedding_matrix)
@@ -259,8 +260,8 @@ def main():
             model = baseline_lstm_gru_attention.NeuralNet(config, embedding_matrix)
         elif config.model == "baseline_lstm_lstm_attention":
             model = baseline_lstm_lstm_attention.NeuralNet(config, embedding_matrix)
-        elif config.model == "baseline_lstm_gru_attention_meta":
-            model = baseline_lstm_gru_attention_meta.NeuralNet(config, embedding_matrix)
+        elif config.model == "lstm_gru_attention_meta":
+            model = lstm_gru_attention_meta.NeuralNet(config, embedding_matrix)
             
         model.cuda()
 
