@@ -131,7 +131,7 @@ def evaluate(val_loader,model,loss_fn,epoch,train_loss,start_time):
 
     with torch.no_grad():
         for i, (x_batch, y_batch, meta) in enumerate(val_loader):
-            y_pred = model(x_batch)
+            y_pred = model(x_batch, meta)
             loss = loss_fn(y_pred, y_batch)
             losses.update(loss.item(),x_batch.shape[0])
 
