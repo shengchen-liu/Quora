@@ -23,7 +23,7 @@ class NeuralNet(nn.Module):
         self.lstm_attention = Attention(hidden_size * 2, config.maxlen)
         self.gru_attention = Attention(hidden_size * 2, config.maxlen)
 
-        self.linear = nn.Linear(480, 16)
+        self.linear = nn.Linear(486, 16)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.1)
         self.out = nn.Linear(16, 1)
