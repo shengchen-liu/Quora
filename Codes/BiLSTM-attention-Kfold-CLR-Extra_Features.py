@@ -1,11 +1,15 @@
 import time
+from datetime import datetime
 import random
 import pandas as pd
 import numpy as np
 import gc
 import re
 import torch
-from torchtext import data
+import sys
+from io import BytesIO  # Python 3.x
+
+import scipy
 # import spacy
 from tqdm import tqdm_notebook, tnrange
 from tqdm.auto import tqdm
@@ -21,14 +25,15 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.autograd import Variable
-from torchtext.data import Example
+
 from sklearn.metrics import f1_score
-import torchtext
+
 import os 
 from decimal import Decimal
 
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
+import tensorflow as tf
 
 # cross validation and metrics
 from sklearn.model_selection import StratifiedKFold
@@ -65,8 +70,72 @@ LR = 0.001
 T_epsilon = 1e-9
 num_classes = 30
 
+class DefaultConfigs(object):
+    train_data = os.path.abspath("../input/train.csv")  # where is your train data
+    test_data =  os.path.abspath("../input/test.csv")  # your test data
+    embedding_dir =  os.path.abspath('../input/embeddings')
+    load_embedding = True
+    save = "../save/"
+    logs = "../results/logs/"
+    weights = "../results/checkpoints/"
+    best_models = "../results/checkpoints/best_models/"
+    submit = "../results/submit/"
+    model_name = "BiLSTM-attention-Kfold-CLR-Extra-Features"
+    lr = 1e-3
+    batch_size = 1024
+    n_epochs = 10 # how many times to iterate over all samples
+    gpus = "0"
+    n_splits = 5 # Number of K-fold Splits
+    model='lstm_gru_attention_meta'
+    embed_size = 300  # how big is each word vector
+    max_features = 190000  # how many unique words to use (i.e num rows in embedding vector)
+    maxlen = 72  # max number of words in a question to use
+    sample = 0 # for debug
+    embed_method = "mean" # concat or mean
+    Routings = 4 #5
+    Num_capsule = 5
+    Dim_capsule = 5#16
+    SEED = 1029
+    load_save = False
+
+# print logger
+class Logger(object):
+    def __init__(self):
+        self.terminal = sys.stdout  #stdout
+        self.file = None
+
+    def open(self, file, mode=None):
+        if mode is None: mode ='w'
+        self.file = open(file, mode)
+
+    def write(self, message, is_terminal=1, is_file=1 ):
+        if '\r' in message: is_file=0
+
+        if is_terminal == 1:
+            self.terminal.write(message)
+            self.terminal.flush()
+            #time.sleep(1)
+
+        if is_file == 1:
+            self.file.write(message)
+            self.file.flush()
+
+    def flush(self):
+        # this flush method is needed for python 3 compatibility.
+        # this handles the flush command by doing nothing.
+        # you might want to specify some extra behavior here.
+        pass
+config = DefaultConfigs()
+
+log = Logger()
+log.open('{0}{1}_log_train.txt'.format(config.logs, config.model_name), mode="a")
+log.write("\n-------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
+log.write('                             |------ Train ------|------ Valid ------|------------|\n')
+log.write('mode    iter   epoch    lr   |       loss        |       loss        | time       |\n')
+log.write('------------------------------------------------------------------------------- \n')
+
 def main():
-    config = DefaultConfigs()
+
     # 4.1 mkdirs
     if not os.path.exists(config.save):
         os.makedirs(config.save)
@@ -127,8 +196,8 @@ def main():
     print("6. load embedding.............")
     seed_everything()
 
-    glove_embeddings = load_glove(word_index)
-    paragram_embeddings = load_para(word_index)
+    glove_embeddings = load_glove(word_index, config)
+    paragram_embeddings = load_para(word_index, config)
 
     embedding_matrix = np.mean([glove_embeddings, paragram_embeddings, paragram_embeddings], axis=0)
 
@@ -139,7 +208,7 @@ def main():
     
     # 7 Use Stratified K Fold to improve results
     print("7. split.............")
-    splits = list(StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=SEED).split(x_train, y_train))
+    splits = list(StratifiedKFold(n_splits=config.n_splits, shuffle=True, random_state=config.SEED).split(x_train, y_train))
 
     # 8 Training
     print("8. training.............")
@@ -158,7 +227,7 @@ def main():
 
     x_test_cuda = torch.tensor(x_test, dtype=torch.long).cuda()
     test = torch.utils.data.TensorDataset(x_test_cuda)
-    test_loader = torch.utils.data.DataLoader(test, batch_size=batch_size, shuffle=False)
+    test_loader = torch.utils.data.DataLoader(test, batch_size=config.batch_size, shuffle=False)
 
     avg_losses_f = []
     avg_val_losses_f = []
@@ -185,7 +254,7 @@ def main():
         y_val_fold = torch.tensor(y_train[valid_idx.astype(int), np.newaxis], dtype=torch.float32).cuda()
 
     #     model = BiLSTM(lstm_layer=2,hidden_dim=40,dropout=DROPOUT).cuda()
-        model = NeuralNet(config)
+        model = NeuralNet(config, embedding_matrix)
 
         # make sure everything in the model is running on the GPU
         model.cuda()
@@ -213,16 +282,16 @@ def main():
         valid = MyDataset(valid)
 
         ##No need to shuffle the data again here. Shuffling happens when splitting for kfolds.
-        train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
+        train_loader = torch.utils.data.DataLoader(train, batch_size=config.batch_size, shuffle=True)
 
-        valid_loader = torch.utils.data.DataLoader(valid, batch_size=batch_size, shuffle=False)
+        valid_loader = torch.utils.data.DataLoader(valid, batch_size=config.batch_size, shuffle=False)
 
         print(f'Fold {fold_i + 1}')
 
         # initialize best loss
         best_loss = np.inf
         avg_val_loss = np.inf
-        for epoch in range(n_epochs):
+        for epoch in range(config.n_epochs):
             # set train mode of the model. This enables operations which are only applied during training like dropout
             start_time = time.time()
             model.train()
@@ -284,7 +353,7 @@ def main():
                 y_pred = model([x_batch,f]).detach()
 
                 avg_val_loss += loss_fn(y_pred, y_batch).item() / len(valid_loader)
-                valid_preds_fold[i * batch_size:(i+1) * batch_size] = sigmoid(y_pred.cpu().numpy())[:, 0]
+                valid_preds_fold[i * config.batch_size:(i+1) * config.batch_size] = sigmoid(y_pred.cpu().numpy())[:, 0]
 
             print('')
             message = '%s   %5.1f %6.1f           |       %0.3f        |       %0.3f       | %s' % ( \
@@ -368,10 +437,10 @@ def main():
         model.load_state_dict(best_model["state_dict"])
         print("Test on epoch:", best_model['epoch'])
         for i, (x_batch,) in enumerate(test_loader):
-            f = test_features[i * batch_size:(i+1) * batch_size]
+            f = test_features[i * config.batch_size:(i+1) * config.batch_size]
             y_pred = model([x_batch,f]).detach()
 
-            test_preds_fold[i * batch_size:(i+1) * batch_size] = sigmoid(y_pred.cpu().numpy())[:, 0]
+            test_preds_fold[i * config.batch_size:(i+1) * config.batch_size] = sigmoid(y_pred.cpu().numpy())[:, 0]
 
         train_preds[valid_idx] = valid_preds_fold
         test_preds += test_preds_fold / len(splits)
@@ -388,33 +457,7 @@ def main():
     submission['prediction'] = (test_preds > delta).astype(int)
     submission.to_csv('submission_{}.csv'.fromat(config.model_name), index=False)
     
-class DefaultConfigs(object):
-    train_data = os.path.abspath("../input/train.csv")  # where is your train data
-    test_data =  os.path.abspath("../input/test.csv")  # your test data
-    embedding_dir =  os.path.abspath('../input/embeddings')
-    load_embedding = True
-    save = "../save/"
-    logs = "../results/logs/"
-    weights = "../results/checkpoints/"
-    best_models = "../results/checkpoints/best_models/"
-    submit = "../results/submit/"
-    model_name = "BiLSTM-attention-Kfold-CLR-Extra-Features"
-    lr = 1e-3
-    batch_size = 1024
-    n_epochs = 10 # how many times to iterate over all samples
-    gpus = "0"
-    n_splits = 5 # Number of K-fold Splits
-    model='lstm_gru_attention_meta'
-    embed_size = 300  # how big is each word vector
-    max_features = 190000  # how many unique words to use (i.e num rows in embedding vector)
-    maxlen = 72  # max number of words in a question to use
-    sample = 0 # for debug
-    embed_method = "mean" # concat or mean
-    Routings = 4 #5
-    Num_capsule = 5
-    Dim_capsule = 5#16
-    SEED = 1029
-    load_save = False
+
     
 def seed_everything(seed=1029):
     random.seed(seed)
@@ -426,7 +469,7 @@ def seed_everything(seed=1029):
     
 # Code for Loading Embeddings
 # Functions taken from the kernel:https://www.kaggle.com/gmhost/gru-capsule
-def load_glove(word_index):
+def load_glove(word_index, config):
     EMBEDDING_FILE = '../input/embeddings/glove.840B.300d/glove.840B.300d.txt'
     def get_coefs(word,*arr): return word, np.asarray(arr, dtype='float32')[:300]
     embeddings_index = dict(get_coefs(*o.split(" ")) for o in open(EMBEDDING_FILE))
@@ -445,7 +488,7 @@ def load_glove(word_index):
             
     return embedding_matrix 
     
-def load_fasttext(word_index):    
+def load_fasttext(word_index, config):
     EMBEDDING_FILE = '../input/embeddings/wiki-news-300d-1M/wiki-news-300d-1M.vec'
     def get_coefs(word,*arr): return word, np.asarray(arr, dtype='float32')
     embeddings_index = dict(get_coefs(*o.split(" ")) for o in open(EMBEDDING_FILE) if len(o)>100)
@@ -464,7 +507,7 @@ def load_fasttext(word_index):
 
     return embedding_matrix
 
-def load_para(word_index):
+def load_para(word_index, config):
     EMBEDDING_FILE = '../input/embeddings/paragram_300_sl999/paragram_300_sl999.txt'
     def get_coefs(word,*arr): return word, np.asarray(arr, dtype='float32')
     embeddings_index = dict(get_coefs(*o.split(" ")) for o in open(EMBEDDING_FILE, encoding="utf8", errors='ignore') if len(o)>100)
@@ -495,12 +538,6 @@ def build_vocab(texts):
                 vocab[word] = 1
     return vocab
 
-def known_contractions(embed):
-    known = []
-    for contract in contraction_mapping:
-        if contract in embed:
-            known.append(contract)
-    return known
 def clean_contractions(text, mapping):
     specials = ["’", "‘", "´", "`"]
     for s in specials:
@@ -748,6 +785,8 @@ class Caps_Layer(nn.Module):
         self.routings = routings
         self.kernel_size = kernel_size  # 暂时没用到
         self.share_weights = share_weights
+
+        BATCH_SIZE = 64
         if activation == 'default':
             self.activation = self.squash
         else:
@@ -755,15 +794,15 @@ class Caps_Layer(nn.Module):
 
         if self.share_weights:
             self.W = nn.Parameter(
-                nn.init.xavier_normal_(t.empty(1, input_dim_capsule, self.num_capsule * self.dim_capsule)))
+                nn.init.xavier_normal_(torch.empty(1, input_dim_capsule, self.num_capsule * self.dim_capsule)))
         else:
             self.W = nn.Parameter(
-                t.randn(BATCH_SIZE, input_dim_capsule, self.num_capsule * self.dim_capsule))  # 64即batch_size
+                torch.randn(BATCH_SIZE, input_dim_capsule, self.num_capsule * self.dim_capsule))  # 64即batch_size
 
     def forward(self, x):
 
         if self.share_weights:
-            u_hat_vecs = t.matmul(x, self.W)
+            u_hat_vecs = torch.matmul(x, self.W)
         else:
             print('add later')
 
@@ -772,23 +811,23 @@ class Caps_Layer(nn.Module):
         u_hat_vecs = u_hat_vecs.view((batch_size, input_num_capsule,
                                       self.num_capsule, self.dim_capsule))
         u_hat_vecs = u_hat_vecs.permute(0, 2, 1, 3)  # 转成(batch_size,num_capsule,input_num_capsule,dim_capsule)
-        b = t.zeros_like(u_hat_vecs[:, :, :, 0])  # (batch_size,num_capsule,input_num_capsule)
+        b = torch.zeros_like(u_hat_vecs[:, :, :, 0])  # (batch_size,num_capsule,input_num_capsule)
 
         for i in range(self.routings):
             b = b.permute(0, 2, 1)
             c = F.softmax(b, dim=2)
             c = c.permute(0, 2, 1)
             b = b.permute(0, 2, 1)
-            outputs = self.activation(t.einsum('bij,bijk->bik', (c, u_hat_vecs)))  # batch matrix multiplication
+            outputs = self.activation(torch.einsum('bij,bijk->bik', (c, u_hat_vecs)))  # batch matrix multiplication
             # outputs shape (batch_size, num_capsule, dim_capsule)
             if i < self.routings - 1:
-                b = t.einsum('bik,bijk->bij', (outputs, u_hat_vecs))  # batch matrix multiplication
+                b = torch.einsum('bik,bijk->bij', (outputs, u_hat_vecs))  # batch matrix multiplication
         return outputs  # (batch_size, num_capsule, dim_capsule)
 
     # text version of squash, slight different from original one
     def squash(self, x, axis=-1):
         s_squared_norm = (x ** 2).sum(axis, keepdim=True)
-        scale = t.sqrt(s_squared_norm + T_epsilon)
+        scale = torch.sqrt(s_squared_norm + T_epsilon)
         return x / scale
 
 class Attention(nn.Module):
@@ -833,18 +872,18 @@ class Attention(nn.Module):
         return torch.sum(weighted_input, 1)
     
 class NeuralNet(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, embedding_matrix):
         super(NeuralNet, self).__init__()
         
         fc_layer = 16
         fc_layer1 = 16
 
-        self.embedding = nn.Embedding(config.max_features, embed_size)
+        self.embedding = nn.Embedding(config.max_features, config.embed_size)
         self.embedding.weight = nn.Parameter(torch.tensor(embedding_matrix, dtype=torch.float32))
         self.embedding.weight.requires_grad = False
         
         self.embedding_dropout = nn.Dropout2d(0.1)
-        self.lstm = nn.LSTM(embed_size, hidden_size, bidirectional=True, batch_first=True)
+        self.lstm = nn.LSTM(config.embed_size, hidden_size, bidirectional=True, batch_first=True)
         self.gru = nn.GRU(hidden_size * 2, hidden_size, bidirectional=True, batch_first=True)
 
         self.lstm2 = nn.LSTM(hidden_size * 2, hidden_size, bidirectional=True, batch_first=True)
@@ -1004,33 +1043,7 @@ class EarlyStopping:
         # torch.save(NeuralNet.state_dict(), 'checkpoint.pt')
         self.val_loss_min = val_loss
         
-# print logger
-class Logger(object):
-    def __init__(self):
-        self.terminal = sys.stdout  #stdout
-        self.file = None
 
-    def open(self, file, mode=None):
-        if mode is None: mode ='w'
-        self.file = open(file, mode)
-
-    def write(self, message, is_terminal=1, is_file=1 ):
-        if '\r' in message: is_file=0
-
-        if is_terminal == 1:
-            self.terminal.write(message)
-            self.terminal.flush()
-            #time.sleep(1)
-
-        if is_file == 1:
-            self.file.write(message)
-            self.file.flush()
-
-    def flush(self):
-        # this flush method is needed for python 3 compatibility.
-        # this handles the flush command by doing nothing.
-        # you might want to specify some extra behavior here.
-        pass
 
 class TFLogger(object):
 
