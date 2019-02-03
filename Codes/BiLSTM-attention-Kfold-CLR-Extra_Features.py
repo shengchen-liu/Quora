@@ -232,6 +232,12 @@ def main():
 
     avg_losses_f = []
     avg_val_losses_f = []
+
+    # split data in train / validation according to the KFold indeces
+    # also, convert them to a torch tensor and store them on the GPU (done with .cuda())
+    x_train = np.array(x_train)
+    y_train = np.array(y_train)
+    features = np.array(features)
     for fold_i, (train_idx, valid_idx) in enumerate(splits):   
         fold_start_time = time.time()
         # tflogger
@@ -239,12 +245,6 @@ def main():
                                          config.model_name + "_fold{0}_{1}".format(config.n_splits, fold_i)))
         # initialize the early_stopping object
         early_stopping = EarlyStopping(patience=3, verbose=True)
-
-        # split data in train / validation according to the KFold indeces
-        # also, convert them to a torch tensor and store them on the GPU (done with .cuda())
-        x_train = np.array(x_train)
-        y_train = np.array(y_train)
-        features = np.array(features)
 
         x_train_fold = torch.tensor(x_train[train_idx.astype(int)], dtype=torch.long).cuda()
         y_train_fold = torch.tensor(y_train[train_idx.astype(int), np.newaxis], dtype=torch.float32).cuda()
