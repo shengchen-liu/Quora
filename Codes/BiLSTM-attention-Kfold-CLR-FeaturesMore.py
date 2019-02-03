@@ -82,13 +82,12 @@ class DefaultConfigs(object):
     weights = "../results/checkpoints/"
     best_models = "../results/checkpoints/best_models/"
     submit = "../results/submit/"
-    model_name = "BiLSTM-attention-Kfold-CLR-Extra-Features"
+    model_name = "BiLSTM-attention-Kfold-CLR-FeaturesMore"
     lr = 1e-3
     batch_size = 1024
     n_epochs = 10 # how many times to iterate over all samples
     gpus = "0"
     n_splits = 5 # Number of K-fold Splits
-    model='lstm_gru_attention_meta'
     embed_size = 300  # how big is each word vector
     max_features = 190000  # how many unique words to use (i.e num rows in embedding vector)
     maxlen = 72  # max number of words in a question to use
