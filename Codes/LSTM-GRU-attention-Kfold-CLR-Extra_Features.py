@@ -456,7 +456,7 @@ def main():
     #10. submission
     submission = df_test[['qid']].copy()
     submission['prediction'] = (test_preds > delta).astype(int)
-    submission.to_csv('submission_{}.csv'.fromat(config.model_name), index=False)
+    submission.to_csv('submission_{}.csv'.format(config.model_name), index=False)
     
 
     
