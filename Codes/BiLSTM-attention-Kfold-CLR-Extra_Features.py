@@ -642,7 +642,7 @@ def load_and_prec(config):
 #     x_test_f, features_t = zip(*x_test_f)    re
     
     #shuffling the data
-    np.random.seed(SEED)
+    np.random.seed(config.SEED)
     trn_idx = np.random.permutation(len(train_X))
 
     train_X = train_X[trn_idx]
