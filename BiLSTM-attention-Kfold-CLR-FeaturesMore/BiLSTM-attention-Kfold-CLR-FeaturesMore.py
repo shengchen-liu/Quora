@@ -915,7 +915,7 @@ class NeuralNet(nn.Module):
             self.embedding_dropout(torch.unsqueeze(h_embedding, 0)))
         
         h_lstm1, _ = self.lstm(h_embedding)
-        h_lstm2, _ = self.lstm(h_lstm1)
+        h_lstm2, _ = self.lstm2(h_lstm1)
 
         ##Capsule Layer        
         content3 = self.caps_layer(h_lstm2)
