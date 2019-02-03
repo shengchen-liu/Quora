@@ -93,6 +93,8 @@ class DefaultConfigs(object):
         self.max_features = 190000  # how many unique words to use (i.e num rows in embedding vector)
         self.maxlen = 72  # max number of words in a question to use
         self.sample = 0 # for debug
+        self.drop_embedding = 0.2 # dropout rate for embedding layer
+        self.drop = 0.1 # dropout for fc
         self.embed_method = "mean" # concat or mean
         self.Routings = 4 #5
         self.Num_capsule = 5
@@ -894,7 +896,7 @@ class NeuralNet(nn.Module):
         self.embedding.weight = nn.Parameter(torch.tensor(embedding_matrix, dtype=torch.float32))
         self.embedding.weight.requires_grad = False
         
-        self.embedding_dropout = nn.Dropout2d(0.1)
+        self.embedding_dropout = nn.Dropout2d(config.drop_embedding)
         self.lstm = nn.LSTM(config.embed_size, hidden_size, bidirectional=True, batch_first=True)
         self.gru = nn.GRU(hidden_size * 2, hidden_size, bidirectional=True, batch_first=True)
 
