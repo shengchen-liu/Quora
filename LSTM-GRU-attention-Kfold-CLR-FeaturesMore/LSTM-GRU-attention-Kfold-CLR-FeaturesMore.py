@@ -73,31 +73,32 @@ T_epsilon = 1e-9
 num_classes = 30
 
 class DefaultConfigs(object):
-    # train_data = os.path.abspath("../input/train.csv")  # where is your train data
-    # test_data =  os.path.abspath("../input/test.csv")  # your test data
-    # embedding_dir =  os.path.abspath('../input/embeddings')
-    # load_embedding = True
-    save = "../save/"
-    logs = "../results/logs/"
-    weights = "../results/checkpoints/"
-    best_models = "../results/checkpoints/best_models/"
-    submit = "../results/submit/"
-    model_name = "LSTM-GRU-attention-Kfold-CLR-FeaturesMore-batch3000"
-    # lr = 1e-3
-    batch_size = 8000
-    n_epochs = 5 # how many times to iterate over all samples
-    # gpus = "0"
-    n_splits = 5 # Number of K-fold Splits
-    embed_size = 300  # how big is each word vector
-    max_features = 190000  # how many unique words to use (i.e num rows in embedding vector)
-    maxlen = 72  # max number of words in a question to use
-    sample = 0 # for debug
-    embed_method = "mean" # concat or mean
-    Routings = 4 #5
-    Num_capsule = 5
-    Dim_capsule = 5#16
-    SEED = 1029
-    load_save = False
+    def __init__(self):
+        # train_data = os.path.abspath("../input/train.csv")  # where is your train data
+        # test_data =  os.path.abspath("../input/test.csv")  # your test data
+        # embedding_dir =  os.path.abspath('../input/embeddings')
+        # load_embedding = True
+        self.save = "../save/"
+        self.logs = "../results/logs/"
+        self.weights = "../results/checkpoints/"
+        self.best_models = "../results/checkpoints/best_models/"
+        self.submit = "../results/submit/"
+        self.model_name = "LSTM-GRU-attention-Kfold-CLR-FeaturesMore-batch3000"
+        # lr = 1e-3
+        self.batch_size = 8000
+        self.n_epochs = 5 # how many times to iterate over all samples
+        # gpus = "0"
+        self.n_splits = 5 # Number of K-fold Splits
+        self.embed_size = 300  # how big is each word vector
+        self.max_features = 190000  # how many unique words to use (i.e num rows in embedding vector)
+        self.maxlen = 72  # max number of words in a question to use
+        self.sample = 0 # for debug
+        self.embed_method = "mean" # concat or mean
+        self.Routings = 4 #5
+        self.Num_capsule = 5
+        self.Dim_capsule = 5#16
+        self.SEED = 1029
+        self.load_save = False
 
 # print logger
 class Logger(object):
@@ -131,7 +132,8 @@ config = DefaultConfigs()
 log = Logger()
 log.open('{0}{1}_log_train.txt'.format(config.logs, config.model_name), mode="a")
 
-print(config.__dict__)
+for arg in vars(config):
+    log.write('{0}:{1}\n'.format(arg, getattr(config, arg)))
 
 log.write("\n-------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
 log.write('                             |------ Train ------|------ Valid ------|------------|\n')

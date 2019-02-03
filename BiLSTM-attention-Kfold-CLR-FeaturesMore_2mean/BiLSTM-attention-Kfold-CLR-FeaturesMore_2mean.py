@@ -127,9 +127,10 @@ class Logger(object):
         # you might want to specify some extra behavior here.
         pass
 config = DefaultConfigs()
-
 log = Logger()
 log.open('{0}{1}_log_train.txt'.format(config.logs, config.model_name), mode="a")
+
+
 log.write("\n-------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
 log.write('                             |------ Train ------|------ Valid ------|------------|\n')
 log.write('mode    iter   epoch    lr   |       loss        |       loss        | time       |\n')
