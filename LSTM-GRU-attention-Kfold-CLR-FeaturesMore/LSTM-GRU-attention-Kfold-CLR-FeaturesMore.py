@@ -130,8 +130,8 @@ config = DefaultConfigs()
 
 log = Logger()
 log.open('{0}{1}_log_train.txt'.format(config.logs, config.model_name), mode="a")
-parameters = dir(config)
-print(parameters.__dict__)
+
+print(config.__dict__)
 
 log.write("\n-------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
 log.write('                             |------ Train ------|------ Valid ------|------------|\n')
@@ -333,14 +333,14 @@ def main():
                 optimizer.step()
                 avg_loss += loss.item() / len(train_loader)
 
-                print('\r', end='', flush=True)
-                message = '%s %5.1f %6.1f           |       %0.3f        |       %0.3f       | %s' % ( \
-                "train", i / len(train_loader) + epoch, epoch+1,
+            # end training-----------------------------
+            print('\r', end='', flush=True)
+            message = '%s %5.1f %6.1f           |       %0.3f        |       %0.3f       | %s' % ( \
+                "train", epoch + 1, epoch + 1,
                 avg_loss,
                 avg_val_loss,
                 time_to_str((time.time() - start_time), 'min'))
-                print(message, end='', flush=True)
-            # end training-----------------------------
+            print(message, end='', flush=True)
             log.write("\n")
             log.write(message)
             log.write("\n")
