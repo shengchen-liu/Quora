@@ -97,7 +97,7 @@ class DefaultConfigs(object):
     Num_capsule = 5
     Dim_capsule = 5#16
     SEED = 1029
-    load_save = True
+    load_save = False
 
 # print logger
 class Logger(object):
