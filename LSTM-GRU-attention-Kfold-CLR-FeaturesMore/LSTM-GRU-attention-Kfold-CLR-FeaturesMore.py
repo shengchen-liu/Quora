@@ -82,10 +82,10 @@ class DefaultConfigs(object):
     weights = "../results/checkpoints/"
     best_models = "../results/checkpoints/best_models/"
     submit = "../results/submit/"
-    model_name = "LSTM-GRU-attention-Kfold-CLR-FeaturesMore"
+    model_name = "LSTM-GRU-attention-Kfold-CLR-FeaturesMore-batch3000"
     lr = 1e-3
-    batch_size = 1024
-    n_epochs = 10 # how many times to iterate over all samples
+    batch_size = 3000
+    n_epochs = 5 # how many times to iterate over all samples
     gpus = "0"
     n_splits = 5 # Number of K-fold Splits
     embed_size = 300  # how big is each word vector
