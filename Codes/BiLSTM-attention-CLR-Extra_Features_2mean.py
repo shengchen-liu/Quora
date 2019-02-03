@@ -80,7 +80,7 @@ class DefaultConfigs(object):
     weights = "../results/checkpoints/"
     best_models = "../results/checkpoints/best_models/"
     submit = "../results/submit/"
-    model_name = "BiLSTM-attention-Kfold-CLR-Extra-Features"
+    model_name = "BiLSTM-attention-CLR-Extra_Features_2mean"
     lr = 1e-3
     batch_size = 1024
     n_epochs = 10 # how many times to iterate over all samples
