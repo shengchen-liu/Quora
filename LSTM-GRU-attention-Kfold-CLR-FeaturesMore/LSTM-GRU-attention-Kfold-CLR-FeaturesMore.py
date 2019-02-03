@@ -82,7 +82,7 @@ class DefaultConfigs(object):
     weights = "../results/checkpoints/"
     best_models = "../results/checkpoints/best_models/"
     submit = "../results/submit/"
-    model_name = "BiLSTM-attention-Kfold-CLR-FeaturesMore"
+    model_name = "LSTM-GRU-attention-Kfold-CLR-FeaturesMore"
     lr = 1e-3
     batch_size = 1024
     n_epochs = 10 # how many times to iterate over all samples
@@ -914,29 +914,29 @@ class NeuralNet(nn.Module):
         h_embedding = torch.squeeze(
             self.embedding_dropout(torch.unsqueeze(h_embedding, 0)))
         
-        h_lstm1, _ = self.lstm(h_embedding)
-        h_lstm2, _ = self.lstm(h_lstm1)
+        h_lstm, _ = self.lstm(h_embedding)
+        h_gru, _ = self.gru(h_lstm)
 
         ##Capsule Layer        
-        content3 = self.caps_layer(h_lstm2)
+        content3 = self.caps_layer(h_gru)
         content3 = self.dropout(content3)
         batch_size = content3.size(0)
         content3 = content3.view(batch_size, -1)
         content3 = self.relu(self.lincaps(content3))
 
         ##Attention Layer
-        h_lstm_atten1 = self.lstm_attention(h_lstm1)
-        h_lstm_atten2 = self.gru_attention(h_lstm2)
+        h_lstm_atten = self.lstm_attention(h_lstm)
+        h_gru_atten = self.gru_attention(h_gru)
         
         # global average pooling
-        avg_pool = torch.mean(h_lstm2, 1)
+        avg_pool = torch.mean(h_gru, 1)
         # global max pooling
-        max_pool, _ = torch.max(h_lstm2, 1)
+        max_pool, _ = torch.max(h_gru, 1)
         
         f = torch.tensor(x[1], dtype=torch.float).cuda()
 
                 #[512,160]
-        conc = torch.cat((h_lstm_atten1, h_lstm_atten2,content3, avg_pool, max_pool,f), 1)
+        conc = torch.cat((h_lstm_atten, h_gru_atten,content3, avg_pool, max_pool,f), 1)
         conc = self.relu(self.linear(conc))
         conc = self.dropout(conc)
 
