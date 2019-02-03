@@ -73,20 +73,20 @@ T_epsilon = 1e-9
 num_classes = 30
 
 class DefaultConfigs(object):
-    train_data = os.path.abspath("../input/train.csv")  # where is your train data
-    test_data =  os.path.abspath("../input/test.csv")  # your test data
-    embedding_dir =  os.path.abspath('../input/embeddings')
-    load_embedding = True
+    # train_data = os.path.abspath("../input/train.csv")  # where is your train data
+    # test_data =  os.path.abspath("../input/test.csv")  # your test data
+    # embedding_dir =  os.path.abspath('../input/embeddings')
+    # load_embedding = True
     save = "../save/"
     logs = "../results/logs/"
     weights = "../results/checkpoints/"
     best_models = "../results/checkpoints/best_models/"
     submit = "../results/submit/"
     model_name = "LSTM-GRU-attention-Kfold-CLR-FeaturesMore-batch3000"
-    lr = 1e-3
-    batch_size = 3000
+    # lr = 1e-3
+    batch_size = 8000
     n_epochs = 5 # how many times to iterate over all samples
-    gpus = "0"
+    # gpus = "0"
     n_splits = 5 # Number of K-fold Splits
     embed_size = 300  # how big is each word vector
     max_features = 190000  # how many unique words to use (i.e num rows in embedding vector)
@@ -130,6 +130,9 @@ config = DefaultConfigs()
 
 log = Logger()
 log.open('{0}{1}_log_train.txt'.format(config.logs, config.model_name), mode="a")
+parameters = dir(config)
+print(parameters.__dict__)
+
 log.write("\n-------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
 log.write('                             |------ Train ------|------ Valid ------|------------|\n')
 log.write('mode    iter   epoch    lr   |       loss        |       loss        | time       |\n')
